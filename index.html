@@ -431,6 +431,7 @@
     let map;
     let manzanasLayer = null;
     let manzanaLabelsLayer = L.layerGroup();
+    let conglomeradoLabelsLayer = L.layerGroup();
     const markerLayers = {
       encuestadas: null,
       noEncontradas: null,
@@ -914,6 +915,7 @@
 
         // Las coordenadas ya están en EPSG:4326 (WGS 84)
         const manzanaFeaturas = new Map();
+        const conglomeradoCentros = new Map();
 
         manzanasLayer = L.geoJSON(MANZANAS_GEOJSON, {
           style: (feature) => ({
@@ -928,24 +930,51 @@
             const cong = parseInt(feature.properties?.CONGLOMERADO_JEFAS || 0);
             layer.bindTooltip(`Conglomerado: ${cong}<br>Manzana: ${claveMza}`, { sticky: true, opacity: 0.85 });
             manzanaFeaturas.set(L.Util.stamp(layer), { layer, claveMza });
+
+            try {
+              const center = layer.getBounds().getCenter();
+              const key = String(cong);
+              const current = conglomeradoCentros.get(key) || {
+                latSum: 0,
+                lngSum: 0,
+                count: 0,
+                color: colorConglomerado[key] || '#444'
+              };
+              current.latSum += center.lat;
+              current.lngSum += center.lng;
+              current.count += 1;
+              conglomeradoCentros.set(key, current);
+            } catch (e) {
+              console.error('Error calculando centro de conglomerado:', e);
+            }
           }
         }).addTo(map);
 
         console.log('Manzanas agregadas al mapa:', manzanaFeaturas.size);
 
-        // Leyenda de conglomerados
-        const legendDiv = document.createElement('div');
-        legendDiv.id = 'leyenda-conglomerados';
-        legendDiv.style.cssText = 'position:absolute;bottom:30px;right:10px;z-index:1000;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px 10px;font-size:11px;max-height:220px;overflow-y:auto;box-shadow:0 1px 4px rgba(0,0,0,0.2);';
-        legendDiv.innerHTML = '<div style="font-weight:700;margin-bottom:5px;font-size:12px;">Conglomerados</div>' +
-          conglomeradosUnicos.map(id =>
-            `<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
-              <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${colorConglomerado[id]};flex-shrink:0;"></span>
-              <span>Cong. ${id}</span>
-            </div>`
-          ).join('');
-        document.getElementById('map').style.position = 'relative';
-        document.getElementById('map').appendChild(legendDiv);
+        function actualizarEtiquetasConglomerado() {
+          const zoom = map.getZoom();
+          conglomeradoLabelsLayer.clearLayers();
+          if (zoom < 15) {
+            if (map.hasLayer(conglomeradoLabelsLayer)) map.removeLayer(conglomeradoLabelsLayer);
+            return;
+          }
+
+          conglomeradoCentros.forEach((val, cong) => {
+            if (!val.count) return;
+            const center = [val.latSum / val.count, val.lngSum / val.count];
+            L.marker(center, {
+              interactive: false,
+              icon: L.divIcon({
+                className: 'conglomerado-label',
+                html: `<div style="font-size:12px;font-weight:700;color:#000;text-shadow:0 0 3px #fff, 0 0 3px #fff;white-space:nowrap;">${cong}</div>`,
+                iconSize: [70, 16]
+              })
+            }).addTo(conglomeradoLabelsLayer);
+          });
+
+          if (!map.hasLayer(conglomeradoLabelsLayer)) conglomeradoLabelsLayer.addTo(map);
+        }
 
         function actualizarEtiquetas() {
           const zoom = map.getZoom();
@@ -972,22 +1001,59 @@
           }
         }
 
-        map.on('zoomend', actualizarEtiquetas);
+        map.on('zoomend', () => {
+          actualizarEtiquetas();
+          actualizarEtiquetasConglomerado();
+        });
         actualizarEtiquetas();
+        actualizarEtiquetasConglomerado();
       } catch (e) {
         console.error('Error cargando manzanas:', e);
       }
     }
 
     function popupHtml(r) {
-      const clave = String(r.clave_vivienda || 'Sin clave');
-      const cap = String(r.capturista_nombre || 'Sin capturista');
-      const fecha = String(r.fecha_captura || 'Sin fecha');
+      const nombre = [r.nombre, r.apellido_paterno, r.apellido_materno]
+        .map((v) => String(v || '').trim())
+        .filter(Boolean)
+        .join(' ');
+      const nombreBeneficiaria = nombre || String(r.nombre_base || 'Sin nombre').trim();
+      const curp = String(r.curp || 'Sin CURP').trim();
+      const edad = String(r.edad || 'Sin edad').trim();
+      const fechaNac = String(r.fecha_nacimiento || 'Sin fecha').trim();
+      const telefono = String(r.telefono || 'Sin telefono').trim();
+      const correo = String(r.correo_electronico || 'Sin correo').trim();
+      const estatusBeneficiaria = String(r.se_encontro_beneficiaria || 'Sin dato').trim();
       const motivo = String(r.porque || '').trim();
+
+      const calle = String(r.calle || '').trim();
+      const numero = String(r.numero || '').trim();
+      const colonia = String(r.colonia || '').trim();
+      const cp = String(r.codigo_postal || '').trim();
+      const direccion = [
+        [calle, numero ? `No. ${numero}` : ''].filter(Boolean).join(' '),
+        colonia,
+        cp ? `CP ${cp}` : ''
+      ].filter(Boolean).join(', ') || 'Sin direccion';
+
+      const clave = String(r.clave_vivienda || 'Sin clave').trim();
+      const cap = String(r.capturista_nombre || 'Sin capturista').trim();
+      const fecha = String(r.fecha_captura || 'Sin fecha').trim();
       return `
-        <div style="font-size:12px;line-height:1.35;">
-          <b>Clave:</b> ${clave}<br>
-          <b>Capturista:</b> ${cap}<br>
+        <div style="font-size:12px;line-height:1.4;min-width:240px;">
+          <div style="font-weight:700;color:#111;margin-bottom:4px;">Beneficiaria</div>
+          <b>Nombre:</b> ${nombreBeneficiaria}<br>
+          <b>CURP:</b> ${curp}<br>
+          <b>Edad:</b> ${edad}<br>
+          <b>Fecha nac.:</b> ${fechaNac}<br>
+          <b>Telefono:</b> ${telefono}<br>
+          <b>Correo:</b> ${correo}<br>
+          <b>Se encontro:</b> ${estatusBeneficiaria}<br>
+          <b>Direccion:</b> ${direccion}<br>
+          <hr style="border:none;border-top:1px solid #ddd;margin:6px 0;">
+          <div style="font-weight:700;color:#444;margin-bottom:2px;">Datos de captura</div>
+          <b>Clave vivienda:</b> ${clave}<br>
+          <b>Promotor:</b> ${cap}<br>
           <b>Fecha:</b> ${fecha}<br>
           <b>Motivo:</b> ${motivo || 'Sin motivo'}
         </div>
@@ -1003,22 +1069,28 @@
       rows.forEach((r) => {
         const coord = parseCoord(r);
         if (!coord) return;
-        const common = { radius: 5, weight: 1, fillOpacity: 0.82 };
+        const common = {
+          radius: 6,
+          color: '#000',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 1
+        };
 
         if (esEncuestada(r)) {
-          L.circleMarker(coord, { ...common, color: '#16a34a', fillColor: '#16a34a' }).bindPopup(popupHtml(r)).addTo(markerLayers.encuestadas);
+          L.circleMarker(coord, { ...common, fillColor: '#16a34a' }).bindPopup(popupHtml(r)).addTo(markerLayers.encuestadas);
           bounds.push(coord);
         }
         if (esNo(r.se_encontro_vivienda)) {
-          L.circleMarker(coord, { ...common, color: '#f59e0b', fillColor: '#f59e0b' }).bindPopup(popupHtml(r)).addTo(markerLayers.noEncontradas);
+          L.circleMarker(coord, { ...common, fillColor: '#f59e0b' }).bindPopup(popupHtml(r)).addTo(markerLayers.noEncontradas);
           bounds.push(coord);
         }
         if (esNo(r.vivienda_pobreza_extrema)) {
-          L.circleMarker(coord, { ...common, color: '#dc2626', fillColor: '#dc2626' }).bindPopup(popupHtml(r)).addTo(markerLayers.noPobreza);
+          L.circleMarker(coord, { ...common, fillColor: '#dc2626' }).bindPopup(popupHtml(r)).addTo(markerLayers.noPobreza);
           bounds.push(coord);
         }
         if (esNo(r.se_recibio_encuestado)) {
-          L.circleMarker(coord, { ...common, color: '#2563eb', fillColor: '#2563eb' }).bindPopup(popupHtml(r)).addTo(markerLayers.noRecibido);
+          L.circleMarker(coord, { ...common, fillColor: '#2563eb' }).bindPopup(popupHtml(r)).addTo(markerLayers.noRecibido);
           bounds.push(coord);
         }
       });
