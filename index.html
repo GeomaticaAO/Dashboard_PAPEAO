@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Censo</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      --brand-1: #7a1931;
+      --brand-2: #9f2241;
+      --brand-3: #5c1226;
+      --bg: #f7f2f4;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #ead2d8;
+      --ok: #065f46;
+      --warn: #92400e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #f3e0e7 0%, var(--bg) 35%, #f9f5f7 100%);
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 20px auto;
+      padding: 0 14px 20px;
+    }
+
+    .header {
+      background: linear-gradient(130deg, var(--brand-1), var(--brand-2));
+      border-radius: 14px;
+      color: #fff;
+      padding: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(122, 25, 49, 0.22);
+    }
+
+    .header img {
+      width: 58px;
+      height: 58px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 5px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      margin: 2px 0 0;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .toolbar {
+      margin-top: 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-primary { background: var(--brand-1); }
+    .btn-secondary { background: #374151; }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .cards {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .donut-panel {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .donut-wrap {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      margin: 0 auto;
+    }
+
+    .donut-center {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .donut-center strong {
+      display: block;
+      font-size: 44px;
+      line-height: 1;
+      color: var(--brand-3);
+      text-align: center;
+    }
+
+    .donut-center span {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .summary-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .chip {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 7px;
+      vertical-align: middle;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 88px;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: bold;
+    }
+
+    .value {
+      margin-top: 8px;
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--brand-3);
+      line-height: 1;
+    }
+
+    .layout {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr 1fr;
+      gap: 10px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      color: var(--brand-1);
+      font-size: 16px;
+    }
+
+    .user-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 250px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .user-stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mini {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+      min-height: 80px;
+    }
+
+    .mini h3 {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .mini .value {
+      margin-top: 6px;
+      font-size: 26px;
+    }
+
+    .map-wrap {
+      margin-top: 12px;
+    }
+
+    .map-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    #map {
+      width: 100%;
+      height: 460px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .bars {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 125px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 14px;
+      background: #f3f4f6;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--brand-2), var(--brand-1));
+      width: 0;
+      transition: width 300ms ease;
+    }
+
+    .legend {
+      margin-top: 8px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 7px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--brand-1);
+      background: #fff8fa;
+    }
+
+    .ok { color: var(--ok); font-weight: bold; }
+    .warn { color: var(--warn); font-weight: bold; }
+
+    @media (max-width: 980px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .donut-panel { grid-template-columns: 1fr; }
+      .user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <img src="../../logo/logo.png" alt="Logo" onerror="this.style.display='none'" />
+      <div>
+        <h1 class="title">Estadisticas obtenidas de la actualización de datos para el proceso de incorporación al programa Mujeres AO: Ingreso Esencial</h1>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="cargarDatos()">Actualizar dashboard</button>
+      <div id="status" class="status">Esperando carga de datos...</div>
+    </div>
+
+    <div class="cards">
+      <div class="card"><h3>Total de Registros</h3><div id="kpi_total" class="value">0</div></div>
+      <div class="card"><h3>Viviendas Encuestadas</h3><div id="kpi_encuestadas" class="value">0</div></div>
+      <div class="card"><h3>Viviendas No Encontradas</h3><div id="kpi_no_encontradas" class="value">0</div></div>
+      <div class="card"><h3>Sin Pobreza Extrema</h3><div id="kpi_no_pobreza" class="value">0</div></div>
+      <div class="card"><h3>No recibió al encuestador</h3><div id="kpi_no_recibido" class="value">0</div></div>
+    </div>
+
+    <div class="panel" style="margin-top:10px;">
+      <h2>Top 10 Motivos de Cancelación de Encuesta</h2>
+      <div id="topMotivosContainer"><p style="color:var(--muted);font-size:13px;">Sin datos aún.</p></div>
+    </div>
+
+    <div class="panel donut-panel">
+      <div class="donut-wrap">
+        <svg id="donutChart" viewBox="0 0 220 220" width="320" height="320" aria-label="Distribucion general"></svg>
+        <div class="donut-center">
+          <div>
+            <strong id="donutTotal">0</strong>
+            <span>Total de registros</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2>Gráfica de Indicadores Generales</h2>
+        <div id="resumenLista" class="summary-list"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:10px;">
+      <h2>Indicadores por Promotor</h2>
+      <div id="promotorGraficaContainer"></div>
+    </div>
+
+    <div class="panel" style="margin-top:10px;">
+      <h2>Estadísticas por Promotor</h2>
+      <div class="user-controls">
+        <label for="userSelect"><b>Seleccionar promotor:</b></label>
+        <select id="userSelect" class="select"></select>
+      </div>
+      <div id="userStats" class="user-stats"></div>
+    </div>
+
+    <div class="panel map-wrap">
+      <h2>Mapa de Encuestas por Categoría</h2>
+      <div class="map-toggles">
+        <label><input type="checkbox" id="toggleEncuestadas" checked /> <i class="chip" style="background:#16a34a"></i>Viviendas Encuestadas</label>
+        <label><input type="checkbox" id="toggleNoEncontradas" checked /> <i class="chip" style="background:#f59e0b"></i>Viviendas No Encontradas</label>
+        <label><input type="checkbox" id="toggleNoPobreza" checked /> <i class="chip" style="background:#dc2626"></i>Sin Pobreza Extrema</label>
+        <label><input type="checkbox" id="toggleNoRecibido" checked /> <i class="chip" style="background:#2563eb"></i>No recibió al encuestador</label>
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <script src="./manzanas-data.js"></script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    let registros = [];
+    let registrosFiltrados = [];
+    let map;
+    let manzanasLayer = null;
+    let manzanaLabelsLayer = L.layerGroup();
+    const markerLayers = {
+      encuestadas: null,
+      noEncontradas: null,
+      noPobreza: null,
+      noRecibido: null
+    };
+
+    function setStatus(msg, isOk = true) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = isOk ? 'status ok' : 'status warn';
+    }
+
+    function toNorm(value) {
+      return String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function esSi(value) {
+      return toNorm(value) === 'si';
+    }
+
+    function esNo(value) {
+      return toNorm(value) === 'no';
+    }
+
+    function parseCsv(text) {
+      const raw = String(text || '');
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < raw.length; i++) {
+        const ch = raw[i];
+        const next = raw[i + 1];
+
+        if (ch === '"') {
+          if (inQuotes && next === '"') {
+            cell += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (ch === ',' && !inQuotes) {
+          row.push(cell.trim());
+          cell = '';
+          continue;
+        }
+
+        if ((ch === '\n' || ch === '\r') && !inQuotes) {
+          if (ch === '\r' && next === '\n') i++;
+          row.push(cell.trim());
+          cell = '';
+          if (row.some((v) => v.length > 0)) rows.push(row);
+          row = [];
+          continue;
+        }
+
+        cell += ch;
+      }
+
+      if (cell.length > 0 || row.length > 0) {
+        row.push(cell.trim());
+        if (row.some((v) => v.length > 0)) rows.push(row);
+      }
+
+      if (!rows.length) return [];
+
+      const headers = rows[0].map((h, i) => (i === 0 ? h.replace(/^\uFEFF/, '') : h));
+      const out = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i];
+        const row = {};
+        headers.forEach((h, idx) => {
+          row[h] = cols[idx] || '';
+        });
+        out.push(row);
+      }
+
+      return out;
+    }
+
+    async function cargarDesdeFuentes() {
+      const fuentes = [
+        '../salidas/CONSOLIDADO_CSV.csv',
+        'https://raw.githubusercontent.com/GeomaticaAO/APP_PAPEAO_MGE/main/salidas/CONSOLIDADO_CSV.csv'
+      ];
+
+      for (const url of fuentes) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) continue;
+          const text = await res.text();
+          const rows = parseCsv(text);
+          if (rows.length) {
+            return { rows, fuente: url };
+          }
+        } catch {
+        }
+      }
+
+      throw new Error('No se pudo cargar CONSOLIDADO_CSV.csv en ninguna fuente.');
+    }
+
+    function getMetricas(rows) {
+      const total = rows.length;
+      const encuestadas = rows.filter((r) => esEncuestada(r)).length;
+      const noEncontradas = rows.filter((r) => esNo(r.se_encontro_vivienda)).length;
+      const noPobreza = rows.filter((r) => esNo(r.vivienda_pobreza_extrema)).length;
+      const noRecibido = rows.filter((r) => esNo(r.se_recibio_encuestado)).length;
+      return { total, encuestadas, noEncontradas, noPobreza, noRecibido };
+    }
+
+    function tienePreguntasVacias(r) {
+      return !toNorm(r.se_encontro_vivienda) &&
+        !toNorm(r.vivienda_pobreza_extrema) &&
+        !toNorm(r.se_recibio_encuestado) &&
+        !toNorm(r.se_encontro_beneficiaria);
+    }
+
+    function esEncuestada(r) {
+      if (
+        esSi(r.se_encontro_vivienda) &&
+        esSi(r.vivienda_pobreza_extrema) &&
+        esSi(r.se_recibio_encuestado) &&
+        esSi(r.se_encontro_beneficiaria)
+      ) {
+        return true;
+      }
+
+      // Compatibilidad con registros antiguos (antes de incorporar preguntas 1-4).
+      if (tienePreguntasVacias(r)) {
+        const tieneDatosPersona = String(r.nombre || r.curp || r.telefono || '').trim().length > 0;
+        const cancelada = String(r.porque || '').trim().length > 0;
+        return tieneDatosPersona && !cancelada;
+      }
+
+      return false;
+    }
+
+    function polarToCartesian(cx, cy, r, angle) {
+      const rad = ((angle - 90) * Math.PI) / 180;
+      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    }
+
+    function arcPath(cx, cy, rOuter, rInner, startAngle, endAngle) {
+      const p1 = polarToCartesian(cx, cy, rOuter, endAngle);
+      const p2 = polarToCartesian(cx, cy, rOuter, startAngle);
+      const p3 = polarToCartesian(cx, cy, rInner, startAngle);
+      const p4 = polarToCartesian(cx, cy, rInner, endAngle);
+      const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+      return [
+        `M ${p1.x} ${p1.y}`,
+        `A ${rOuter} ${rOuter} 0 ${largeArc} 0 ${p2.x} ${p2.y}`,
+        `L ${p3.x} ${p3.y}`,
+        `A ${rInner} ${rInner} 0 ${largeArc} 1 ${p4.x} ${p4.y}`,
+        'Z'
+      ].join(' ');
+    }
+
+    function renderDonut(rows) {
+      const { total, encuestadas, noEncontradas, noPobreza, noRecibido } = getMetricas(rows);
+      const segments = [
+        { label: 'Viviendas Encuestadas', value: encuestadas, color: '#16a34a' },
+        { label: 'Viviendas No Encontradas', value: noEncontradas, color: '#f59e0b' },
+        { label: 'Sin Pobreza Extrema', value: noPobreza, color: '#dc2626' },
+        { label: 'No recibió al encuestador', value: noRecibido, color: '#2563eb' }
+      ];
+
+      const svg = document.getElementById('donutChart');
+      const totalPartes = Math.max(segments.reduce((acc, s) => acc + s.value, 0), 1);
+      let current = 0;
+      const cx = 110;
+      const cy = 110;
+      const rOuter = 96;
+      const rInner = 58;
+      const paths = segments.map((seg) => {
+        const angle = (seg.value / totalPartes) * 360;
+        const start = current;
+        const end = current + angle;
+        current = end;
+        return `<path d="${arcPath(cx, cy, rOuter, rInner, start, end)}" fill="${seg.color}"></path>`;
+      }).join('');
+      svg.innerHTML = paths;
+      document.getElementById('donutTotal').textContent = total;
+
+      const resumen = document.getElementById('resumenLista');
+      resumen.innerHTML = segments.map((s) => `
+        <div class="summary-item">
+          <span><i class="chip" style="background:${s.color}"></i>${s.label}</span>
+          <b>${s.value}</b>
+        </div>
+      `).join('');
+    }
+
+    function renderKpis(rows) {
+      const { total, encuestadas, noEncontradas, noPobreza, noRecibido } = getMetricas(rows);
+
+      document.getElementById('kpi_total').textContent = total;
+      document.getElementById('kpi_encuestadas').textContent = encuestadas;
+      document.getElementById('kpi_no_encontradas').textContent = noEncontradas;
+      document.getElementById('kpi_no_pobreza').textContent = noPobreza;
+      document.getElementById('kpi_no_recibido').textContent = noRecibido;
+    }
+
+    function renderUserStats(rows) {
+      const { total, encuestadas, noEncontradas, noPobreza, noRecibido } = getMetricas(rows);
+
+      const holder = document.getElementById('userStats');
+      holder.innerHTML = `
+        <div class="mini"><h3>Total de Registros</h3><div class="value">${total}</div></div>
+        <div class="mini"><h3>Viviendas Encuestadas</h3><div class="value">${encuestadas}</div></div>
+        <div class="mini"><h3>Viviendas No Encontradas</h3><div class="value">${noEncontradas}</div></div>
+        <div class="mini"><h3>Sin Pobreza Extrema</h3><div class="value">${noPobreza}</div></div>
+        <div class="mini"><h3>No recibió al encuestador</h3><div class="value">${noRecibido}</div></div>
+      `;
+    }
+
+    function normalizarTexto(texto) {
+      return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function levenshtein(a, b) {
+      if (!a.length) return b.length;
+      if (!b.length) return a.length;
+      const m = a.length, n = b.length;
+      const prev = Array.from({ length: n + 1 }, (_, j) => j);
+      const curr = new Array(n + 1);
+      for (let i = 1; i <= m; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= n; j++) {
+          curr[j] = a[i - 1] === b[j - 1]
+            ? prev[j - 1]
+            : 1 + Math.min(prev[j], curr[j - 1], prev[j - 1]);
+        }
+        prev.splice(0, n + 1, ...curr);
+      }
+      return prev[n];
+    }
+
+    function similitud(a, b) {
+      const na = normalizarTexto(a);
+      const nb = normalizarTexto(b);
+      if (!na && !nb) return 1;
+      if (!na || !nb) return 0;
+      const dist = levenshtein(na, nb);
+      return 1 - dist / Math.max(na.length, nb.length);
+    }
+
+    function agruparMotivosFuzzy(rows, umbral = 0.65) {
+      const grupos = [];
+      rows.forEach((r) => {
+        const motivo = String(r.porque || '').trim();
+        if (!motivo) return;
+        let asignado = false;
+        for (const g of grupos) {
+          if (similitud(motivo, g.repr) >= umbral) {
+            g.count++;
+            if (!g.variantes.includes(motivo)) g.variantes.push(motivo);
+            asignado = true;
+            break;
+          }
+        }
+        if (!asignado) grupos.push({ repr: motivo, count: 1, variantes: [motivo] });
+      });
+      return grupos.sort((a, b) => b.count - a.count).slice(0, 10);
+    }
+
+    function renderTopMotivos(rows) {
+      const grupos = agruparMotivosFuzzy(rows);
+      const container = document.getElementById('topMotivosContainer');
+      if (!grupos.length) {
+        container.innerHTML = '<p style="color:var(--muted);font-size:13px;">Sin datos de motivos de cancelación.</p>';
+        return;
+      }
+      const max = grupos[0].count;
+      container.innerHTML = grupos.map((g, i) => {
+        const pct = max > 0 ? Math.round((g.count / max) * 100) : 0;
+        const variantes = g.variantes.length > 1
+          ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;">Variantes similares: ${g.variantes.slice(1, 4).join(' • ')}${g.variantes.length > 4 ? '...' : ''}</div>`
+          : '';
+        return `
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:bold;margin-bottom:4px;">
+              <span>${i + 1}. ${g.repr}</span>
+              <span style="color:var(--brand-1);white-space:nowrap;margin-left:10px;">${g.count} registro${g.count !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            ${variantes}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function poblarPromotores(rows) {
+      const select = document.getElementById('userSelect');
+      const anterior = select.value;
+      const promotores = [...new Set(rows
+        .map((r) => String(r.capturista_nombre || '').trim())
+        .filter((x) => x.length > 0)
+      )].sort((a, b) => a.localeCompare(b));
+
+      const options = ['<option value="__todos__">Todos</option>']
+        .concat(promotores.map((u) => `<option value="${u.replaceAll('"', '&quot;')}">${u}</option>`));
+      select.innerHTML = options.join('');
+      if (promotores.includes(anterior)) {
+        select.value = anterior;
+      } else {
+        select.value = '__todos__';
+      }
+    }
+
+    function renderGraficaPromotores(rows) {
+      const promotoresMap = new Map();
+      rows.forEach((r) => {
+        const nom = String(r.capturista_nombre || 'Sin Promotor').trim();
+        if (!promotoresMap.has(nom)) {
+          promotoresMap.set(nom, { encuestadas: 0, noEncontradas: 0, noPobreza: 0, noRecibido: 0 });
+        }
+        const datos = promotoresMap.get(nom);
+        if (esEncuestada(r)) datos.encuestadas++;
+        if (esNo(r.se_encontro_vivienda)) datos.noEncontradas++;
+        if (esNo(r.vivienda_pobreza_extrema)) datos.noPobreza++;
+        if (esNo(r.se_recibio_encuestado)) datos.noRecibido++;
+      });
+
+      const promotores = Array.from(promotoresMap.entries())
+        .map(([nombre, datos]) => ({ nombre, ...datos }))
+        .sort((a, b) => (b.encuestadas + b.noEncontradas + b.noPobreza + b.noRecibido) - (a.encuestadas + a.noEncontradas + a.noPobreza + a.noRecibido));
+
+      const container = document.getElementById('promotorGraficaContainer');
+      if (!promotores.length) {
+        container.innerHTML = '<p style="color:var(--muted);font-size:13px;">Sin datos de promotores.</p>';
+        return;
+      }
+
+      const colores = {
+        encuestadas: '#16a34a',
+        noEncontradas: '#f59e0b',
+        noPobreza: '#dc2626',
+        noRecibido: '#2563eb'
+      };
+      const etiquetasLargas = {
+        encuestadas: 'Viviendas Encuestadas',
+        noEncontradas: 'Viviendas No Encontradas',
+        noPobreza: 'Sin Pobreza Extrema',
+        noRecibido: 'No recibió al encuestador'
+      };
+      const etiquetasCortas = {
+        encuestadas: 'Encuestadas',
+        noEncontradas: 'No Encontradas',
+        noPobreza: 'Sin Pobreza',
+        noRecibido: 'No Recibido'
+      };
+
+      const maxTotal = Math.max(...promotores.map((p) => p.encuestadas + p.noEncontradas + p.noPobreza + p.noRecibido), 1);
+      const conScroll = promotores.length > 10;
+      const alturaScroll = conScroll ? '400px' : 'auto';
+      const overflowY = conScroll ? 'auto' : 'visible';
+
+      container.innerHTML = `
+        <div style="display:grid;gap:16px;">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;">
+            ${Object.entries(etiquetasLargas).map(([key, label]) => `
+              <div style="display:flex;align-items:center;gap:6px;">
+                <i class="chip" style="background:${colores[key]}"></i>${label}
+              </div>
+            `).join('')}
+          </div>
+          <div style="overflow-y:${overflowY};max-height:${alturaScroll};padding-right:${conScroll ? '8px' : '0'};">
+            <div style="display:grid;gap:12px;">
+              ${promotores.map((p) => {
+                const total = p.encuestadas + p.noEncontradas + p.noPobreza + p.noRecibido;
+                const segmentos = [
+                  { key: 'encuestadas', value: p.encuestadas },
+                  { key: 'noEncontradas', value: p.noEncontradas },
+                  { key: 'noPobreza', value: p.noPobreza },
+                  { key: 'noRecibido', value: p.noRecibido }
+                ];
+                return `
+                  <div>
+                    <div style="font-size:13px;font-weight:bold;margin-bottom:4px;">${p.nombre}</div>
+                    <div style="display:flex;gap:0;height:20px;border-radius:4px;overflow:hidden;background:#f3f4f6;border:1px solid #e5e7eb;margin-bottom:4px;">
+                      ${segmentos.map((seg) => {
+                        const pct = total > 0 ? (seg.value / total) * 100 : 0;
+                        return pct > 0 ? `<div style="flex:${pct};background:${colores[seg.key]};display:${pct < 5 ? 'none' : 'block'}"></div>` : '';
+                      }).join('')}
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:10px;color:var(--muted);">
+                      ${segmentos.map((seg) => `<span style="white-space:nowrap;"><b>${seg.value}</b> ${etiquetasCortas[seg.key]}</span>`).join('')}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function parseCoord(row) {
+      let lat = Number.parseFloat(String(row.latitud || '').trim());
+      let lon = Number.parseFloat(String(row.longitud || '').trim());
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        const coordText = String(row.coordenadas_gps || '').trim();
+        const nums = coordText.match(/-?\d+(?:\.\d+)?/g);
+        if (nums && nums.length >= 2) {
+          lat = Number.parseFloat(nums[0]);
+          lon = Number.parseFloat(nums[1]);
+        }
+      }
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      // Si vienen invertidas (lon,lat), se corrigen automaticamente.
+      if ((lat < -90 || lat > 90) && (lon >= -90 && lon <= 90)) {
+        const tmp = lat;
+        lat = lon;
+        lon = tmp;
+      }
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+      return [lat, lon];
+    }
+
+    function initMap() {
+      if (map) return;
+      map = L.map('map', { center: [19.32, -99.26], zoom: 14 });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      markerLayers.encuestadas = L.layerGroup().addTo(map);
+      markerLayers.noEncontradas = L.layerGroup().addTo(map);
+      markerLayers.noPobreza = L.layerGroup().addTo(map);
+      markerLayers.noRecibido = L.layerGroup().addTo(map);
+
+      cargarManzanas();
+    }
+
+    function cargarManzanas() {
+      try {
+        if (typeof MANZANAS_GEOJSON === 'undefined') {
+          console.error('MANZANAS_GEOJSON no está definido. Verifica que manzanas-data.js se cargó correctamente.');
+          return;
+        }
+        console.log('GeoJSON disponible:', MANZANAS_GEOJSON.features.length, 'features');
+
+        // Colores distintos para cada conglomerado (HSL distribuido)
+        const conglomeradosUnicos = [...new Set(
+          MANZANAS_GEOJSON.features.map(f => String(parseInt(f.properties?.CONGLOMERADO_JEFAS || 0)))
+        )].sort((a, b) => parseInt(a) - parseInt(b));
+
+        const colorConglomerado = {};
+        conglomeradosUnicos.forEach((id, i) => {
+          // Ángulo áureo: garantiza máxima separación perceptual entre colores consecutivos
+          const hue = Math.round((i * 137.508) % 360);
+          // Alternar saturación/luminosidad para mayor diferenciación adicional
+          const sat = i % 2 === 0 ? 78 : 65;
+          const lum = i % 3 === 0 ? 40 : (i % 3 === 1 ? 50 : 45);
+          colorConglomerado[id] = `hsl(${hue}, ${sat}%, ${lum}%)`;
+        });
+
+        const getColor = (feature) => {
+          const cong = String(parseInt(feature.properties?.CONGLOMERADO_JEFAS || 0));
+          return colorConglomerado[cong] || '#888';
+        };
+
+        // Las coordenadas ya están en EPSG:4326 (WGS 84)
+        const manzanaFeaturas = new Map();
+
+        manzanasLayer = L.geoJSON(MANZANAS_GEOJSON, {
+          style: (feature) => ({
+            color: getColor(feature),
+            weight: 1.5,
+            opacity: 1,
+            fillColor: getColor(feature),
+            fillOpacity: 0.35
+          }),
+          onEachFeature: (feature, layer) => {
+            const claveMza = feature.properties?.clave_MZA || '';
+            const cong = parseInt(feature.properties?.CONGLOMERADO_JEFAS || 0);
+            layer.bindTooltip(`Conglomerado: ${cong}<br>Manzana: ${claveMza}`, { sticky: true, opacity: 0.85 });
+            manzanaFeaturas.set(L.Util.stamp(layer), { layer, claveMza });
+          }
+        }).addTo(map);
+
+        console.log('Manzanas agregadas al mapa:', manzanaFeaturas.size);
+
+        // Leyenda de conglomerados
+        const legendDiv = document.createElement('div');
+        legendDiv.id = 'leyenda-conglomerados';
+        legendDiv.style.cssText = 'position:absolute;bottom:30px;right:10px;z-index:1000;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px 10px;font-size:11px;max-height:220px;overflow-y:auto;box-shadow:0 1px 4px rgba(0,0,0,0.2);';
+        legendDiv.innerHTML = '<div style="font-weight:700;margin-bottom:5px;font-size:12px;">Conglomerados</div>' +
+          conglomeradosUnicos.map(id =>
+            `<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
+              <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${colorConglomerado[id]};flex-shrink:0;"></span>
+              <span>Cong. ${id}</span>
+            </div>`
+          ).join('');
+        document.getElementById('map').style.position = 'relative';
+        document.getElementById('map').appendChild(legendDiv);
+
+        function actualizarEtiquetas() {
+          const zoom = map.getZoom();
+          manzanaLabelsLayer.clearLayers();
+          if (zoom >= 19) {
+            manzanaFeaturas.forEach(({ layer, claveMza }) => {
+              try {
+                const bounds = layer.getBounds();
+                const center = bounds.getCenter();
+                L.marker(center, {
+                  icon: L.divIcon({
+                    className: 'manzana-label',
+                    html: `<div style="font-size:10px;font-weight:bold;color:#000;pointer-events:none;text-align:center;">${claveMza}</div>`,
+                    iconSize: [70, 20]
+                  })
+                }).addTo(manzanaLabelsLayer);
+              } catch (e) {
+                console.error('Error agregando etiqueta:', e);
+              }
+            });
+            if (!map.hasLayer(manzanaLabelsLayer)) manzanaLabelsLayer.addTo(map);
+          } else {
+            if (map.hasLayer(manzanaLabelsLayer)) map.removeLayer(manzanaLabelsLayer);
+          }
+        }
+
+        map.on('zoomend', actualizarEtiquetas);
+        actualizarEtiquetas();
+      } catch (e) {
+        console.error('Error cargando manzanas:', e);
+      }
+    }
+
+    function popupHtml(r) {
+      const clave = String(r.clave_vivienda || 'Sin clave');
+      const cap = String(r.capturista_nombre || 'Sin capturista');
+      const fecha = String(r.fecha_captura || 'Sin fecha');
+      const motivo = String(r.porque || '').trim();
+      return `
+        <div style="font-size:12px;line-height:1.35;">
+          <b>Clave:</b> ${clave}<br>
+          <b>Capturista:</b> ${cap}<br>
+          <b>Fecha:</b> ${fecha}<br>
+          <b>Motivo:</b> ${motivo || 'Sin motivo'}
+        </div>
+      `;
+    }
+
+    function renderMapa(rows) {
+      initMap();
+      Object.values(markerLayers).forEach((layer) => layer.clearLayers());
+
+      const bounds = [];
+
+      rows.forEach((r) => {
+        const coord = parseCoord(r);
+        if (!coord) return;
+        const common = { radius: 5, weight: 1, fillOpacity: 0.82 };
+
+        if (esEncuestada(r)) {
+          L.circleMarker(coord, { ...common, color: '#16a34a', fillColor: '#16a34a' }).bindPopup(popupHtml(r)).addTo(markerLayers.encuestadas);
+          bounds.push(coord);
+        }
+        if (esNo(r.se_encontro_vivienda)) {
+          L.circleMarker(coord, { ...common, color: '#f59e0b', fillColor: '#f59e0b' }).bindPopup(popupHtml(r)).addTo(markerLayers.noEncontradas);
+          bounds.push(coord);
+        }
+        if (esNo(r.vivienda_pobreza_extrema)) {
+          L.circleMarker(coord, { ...common, color: '#dc2626', fillColor: '#dc2626' }).bindPopup(popupHtml(r)).addTo(markerLayers.noPobreza);
+          bounds.push(coord);
+        }
+        if (esNo(r.se_recibio_encuestado)) {
+          L.circleMarker(coord, { ...common, color: '#2563eb', fillColor: '#2563eb' }).bindPopup(popupHtml(r)).addTo(markerLayers.noRecibido);
+          bounds.push(coord);
+        }
+      });
+
+      const reglas = [
+        ['toggleEncuestadas', markerLayers.encuestadas],
+        ['toggleNoEncontradas', markerLayers.noEncontradas],
+        ['toggleNoPobreza', markerLayers.noPobreza],
+        ['toggleNoRecibido', markerLayers.noRecibido]
+      ];
+      reglas.forEach(([id, layer]) => {
+        const checked = document.getElementById(id).checked;
+        if (checked && !map.hasLayer(layer)) map.addLayer(layer);
+        if (!checked && map.hasLayer(layer)) map.removeLayer(layer);
+      });
+
+      if (bounds.length) {
+        map.fitBounds(bounds, { padding: [20, 20], maxZoom: 16 });
+      }
+    }
+
+    function actualizarVistaUsuario() {
+      const select = document.getElementById('userSelect');
+      const selected = select.value;
+      registrosFiltrados = selected === '__todos__'
+        ? [...registros]
+        : registros.filter((r) => String(r.capturista_nombre || '').trim() === selected);
+
+      renderGraficaPromotores(selected === '__todos__' ? registros : registros);
+      renderDonut(registrosFiltrados);
+      renderKpis(registrosFiltrados);
+      renderUserStats(registrosFiltrados);
+      renderTopMotivos(registrosFiltrados);
+      renderMapa(registrosFiltrados);
+    }
+
+    async function cargarDatos() {
+      setStatus('Cargando consolidado...');
+      try {
+        const { rows } = await cargarDesdeFuentes();
+        registros = rows;
+        poblarPromotores(rows);
+        actualizarVistaUsuario();
+        setStatus('');
+      } catch (error) {
+        setStatus(String(error.message || 'No se pudo cargar el dashboard.'), false);
+      }
+    }
+
+    ['toggleEncuestadas', 'toggleNoEncontradas', 'toggleNoPobreza', 'toggleNoRecibido']
+      .forEach((id) => {
+        document.getElementById(id).addEventListener('change', () => renderMapa(registrosFiltrados));
+      });
+    document.getElementById('userSelect').addEventListener('change', actualizarVistaUsuario);
+
+    cargarDatos();
+  </script>
+</body>
+</html>
