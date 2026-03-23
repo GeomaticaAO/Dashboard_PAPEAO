@@ -1181,11 +1181,14 @@
         ? [...registros]
         : registros.filter((r) => String(r.capturista_nombre || '').trim() === selected);
 
-      renderGraficaPromotores(selected === '__todos__' ? registros : registros);
-      renderDonut(registrosFiltrados);
-      renderKpis(registrosFiltrados);
+      // Secciones globales: siempre con TODOS los registros
+      renderGraficaPromotores(registros);
+      renderDonut(registros);
+      renderKpis(registros);
+      renderTopMotivos(registros);
+
+      // Solo Estadísticas por Promotor y Mapa: filtrados por promotor seleccionado
       renderUserStats(registrosFiltrados);
-      renderTopMotivos(registrosFiltrados);
       renderMapa(registrosFiltrados);
     }
 
