@@ -348,12 +348,31 @@
       .user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .layout { grid-template-columns: 1fr; }
     }
+
+    @media print {
+      body { background: #fff !important; }
+      .toolbar { display: none !important; }
+      .wrap { margin: 0; padding: 0; max-width: 100%; }
+      .header {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: linear-gradient(130deg, #7a1931, #9f2241) !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color: #fff !important;
+      }
+      .header h1, .header p { color: #fff !important; }
+      .panel, .card { break-inside: avoid; }
+      #map { height: 340px !important; }
+    }
+
+    .btn-export { background: #166534; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="header">
-      <img src="../../logo/logo.png" alt="Logo" onerror="this.style.display='none'" />
+      <img src="../logo/logo.png" alt="Logo" onerror="this.style.display='none'" />
       <div>
         <h1 class="title">Estadisticas obtenidas de la actualización de datos para el proceso de incorporación al programa Mujeres AO: Ingreso Esencial</h1>
       </div>
@@ -361,6 +380,7 @@
 
     <div class="toolbar">
       <button class="btn btn-primary" onclick="cargarDatos()">Actualizar dashboard</button>
+      <button class="btn btn-export" onclick="exportarPDF()">Exportar</button>
       <div id="status" class="status">Esperando carga de datos...</div>
     </div>
 
@@ -388,7 +408,7 @@
         </div>
       </div>
       <div>
-        <h2>Gráfica de Indicadores Generales</h2>
+        <h2>Indicadores Generales</h2>
         <div id="resumenLista" class="summary-list"></div>
       </div>
     </div>
@@ -616,14 +636,21 @@
       const cy = 110;
       const rOuter = 96;
       const rInner = 58;
+      const ringRadius = (rOuter + rInner) / 2;
+      const ringWidth = rOuter - rInner;
+      const baseRing = `<circle cx="${cx}" cy="${cy}" r="${ringRadius}" fill="none" stroke="#f3e0e7" stroke-width="${ringWidth}"></circle>`;
       const paths = segments.map((seg) => {
+        if (!seg.value) return '';
         const angle = (seg.value / totalPartes) * 360;
+        if (angle >= 359.999) {
+          return `<circle cx="${cx}" cy="${cy}" r="${ringRadius}" fill="none" stroke="${seg.color}" stroke-width="${ringWidth}"></circle>`;
+        }
         const start = current;
         const end = current + angle;
         current = end;
         return `<path d="${arcPath(cx, cy, rOuter, rInner, start, end)}" fill="${seg.color}"></path>`;
       }).join('');
-      svg.innerHTML = paths;
+      svg.innerHTML = baseRing + paths;
       document.getElementById('donutTotal').textContent = total;
 
       const resumen = document.getElementById('resumenLista');
@@ -1039,6 +1066,24 @@
       const clave = String(r.clave_vivienda || 'Sin clave').trim();
       const cap = String(r.capturista_nombre || 'Sin capturista').trim();
       const fecha = String(r.fecha_captura || 'Sin fecha').trim();
+
+      // Detectar cancelación: cualquier pregunta 1-4 con valor "No"
+      const cancelChecks = [
+        { label: '1. ¿Se encontró la vivienda?',          val: r.se_encontro_vivienda },
+        { label: '2. ¿Vivienda en pobreza extrema?',       val: r.vivienda_pobreza_extrema },
+        { label: '3. ¿Se recibió al encuestado?',          val: r.se_recibio_encuestado },
+        { label: '4. ¿Se encontró a la beneficiaria?',     val: r.se_encontro_beneficiaria },
+      ];
+      const cancelTrigger = cancelChecks.find((c) => String(c.val || '').trim().toLowerCase() === 'no');
+      const encuestaCancelada = !!cancelTrigger;
+
+      const cancelacionBlock = encuestaCancelada ? `
+          <hr style="border:none;border-top:2px solid #b91c1c;margin:6px 0;">
+          <div style="font-weight:700;color:#b91c1c;margin-bottom:4px;">&#9888; Encuesta cancelada</div>
+          <b>Motivo de cancelación:</b> ${cancelTrigger.label} = <span style="color:#b91c1c;font-weight:bold;">No</span><br>
+          ${motivo ? `<b>Detalle:</b> ${motivo}` : ''}
+      ` : '';
+
       return `
         <div style="font-size:12px;line-height:1.4;min-width:240px;">
           <div style="font-weight:700;color:#111;margin-bottom:4px;">Beneficiaria</div>
@@ -1050,12 +1095,12 @@
           <b>Correo:</b> ${correo}<br>
           <b>Se encontro:</b> ${estatusBeneficiaria}<br>
           <b>Direccion:</b> ${direccion}<br>
+          ${cancelacionBlock}
           <hr style="border:none;border-top:1px solid #ddd;margin:6px 0;">
           <div style="font-weight:700;color:#444;margin-bottom:2px;">Datos de captura</div>
           <b>Clave vivienda:</b> ${clave}<br>
           <b>Promotor:</b> ${cap}<br>
-          <b>Fecha:</b> ${fecha}<br>
-          <b>Motivo:</b> ${motivo || 'Sin motivo'}
+          <b>Fecha:</b> ${fecha}
         </div>
       `;
     }
@@ -1147,6 +1192,13 @@
     document.getElementById('userSelect').addEventListener('change', actualizarVistaUsuario);
 
     cargarDatos();
+
+    function exportarPDF() {
+      const titulo = document.title;
+      document.title = 'Dashboard_Censo_' + new Date().toISOString().slice(0, 10);
+      window.print();
+      document.title = titulo;
+    }
   </script>
 </body>
 </html>
