@@ -350,6 +350,10 @@
     }
 
     @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       body { background: #fff !important; }
       .toolbar { display: none !important; }
       .wrap { margin: 0; padding: 0; max-width: 100%; }
@@ -364,6 +368,16 @@
       .header h1, .header p { color: #fff !important; }
       .panel, .card { break-inside: avoid; }
       #map { height: 340px !important; }
+      .promotor-scroll {
+        overflow: visible !important;
+        max-height: none !important;
+        padding-right: 0 !important;
+      }
+      .promotor-stack,
+      .promotor-seg {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
     }
 
     .btn-export { background: #166534; }
@@ -833,7 +847,7 @@
       const overflowY = conScroll ? 'auto' : 'visible';
 
       container.innerHTML = `
-        <div style="display:grid;gap:16px;">
+        <div class="promotor-grafica-root" style="display:grid;gap:16px;">
           <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;">
             ${Object.entries(etiquetasLargas).map(([key, label]) => `
               <div style="display:flex;align-items:center;gap:6px;">
@@ -841,7 +855,7 @@
               </div>
             `).join('')}
           </div>
-          <div style="overflow-y:${overflowY};max-height:${alturaScroll};padding-right:${conScroll ? '8px' : '0'};">
+          <div class="promotor-scroll" style="overflow-y:${overflowY};max-height:${alturaScroll};padding-right:${conScroll ? '8px' : '0'};">
             <div style="display:grid;gap:12px;">
               ${promotores.map((p) => {
                 const total = p.encuestadas + p.noEncontradas + p.noPobreza + p.noRecibido;
@@ -854,10 +868,13 @@
                 return `
                   <div>
                     <div style="font-size:13px;font-weight:bold;margin-bottom:4px;">${p.nombre}</div>
-                    <div style="display:flex;gap:0;height:20px;border-radius:4px;overflow:hidden;background:#f3f4f6;border:1px solid #e5e7eb;margin-bottom:4px;">
+                    <div class="promotor-stack" style="display:flex;gap:0;height:20px;border-radius:4px;overflow:hidden;background:#f3f4f6;border:1px solid #e5e7eb;margin-bottom:4px;">
                       ${segmentos.map((seg) => {
                         const pct = total > 0 ? (seg.value / total) * 100 : 0;
-                        return pct > 0 ? `<div style="flex:${pct};background:${colores[seg.key]};display:${pct < 5 ? 'none' : 'block'}"></div>` : '';
+                        const flexValue = pct > 0 ? Math.max(pct, 2) : 0;
+                        return seg.value > 0
+                          ? `<div class="promotor-seg" style="flex:${flexValue};background:${colores[seg.key]};min-width:6px"></div>`
+                          : '';
                       }).join('')}
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:10px;color:var(--muted);">
@@ -1196,8 +1213,20 @@
     function exportarPDF() {
       const titulo = document.title;
       document.title = 'Dashboard_Censo_' + new Date().toISOString().slice(0, 10);
-      window.print();
-      document.title = titulo;
+
+      // Re-render previo para evitar exportar bloques en blanco en algunos navegadores.
+      renderDonut(registrosFiltrados);
+      renderTopMotivos(registrosFiltrados);
+      renderGraficaPromotores(registros);
+
+      if (map) {
+        map.invalidateSize();
+      }
+
+      setTimeout(() => {
+        window.print();
+        document.title = titulo;
+      }, 120);
     }
   </script>
 </body>
