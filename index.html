@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -103,7 +103,7 @@
       margin-top: 12px;
       display: grid;
       gap: 10px;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 
     .donut-panel {
@@ -231,7 +231,7 @@
 
     .user-stats {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 10px;
     }
 
@@ -388,7 +388,7 @@
     <div class="header">
       <img src="../logo/logo.png" alt="Logo" onerror="this.style.display='none'" />
       <div>
-        <h1 class="title">Estadisticas obtenidas de la actualización de datos para el proceso de incorporación al programa Mujeres AO: Ingreso Esencial</h1>
+        <h1 class="title">Estadisticas obtenidas de la actualizaciÃ³n de datos para el proceso de incorporaciÃ³n al programa Mujeres AO: Ingreso Esencial</h1>
       </div>
     </div>
 
@@ -403,12 +403,13 @@
       <div class="card"><h3>Viviendas Encuestadas</h3><div id="kpi_encuestadas" class="value">0</div></div>
       <div class="card"><h3>Viviendas No Encontradas</h3><div id="kpi_no_encontradas" class="value">0</div></div>
       <div class="card"><h3>Sin Pobreza Extrema</h3><div id="kpi_no_pobreza" class="value">0</div></div>
+      <div class="card"><h3>No se encontró a la beneficiaria</h3><div id="kpi_no_beneficiaria" class="value">0</div></div>
       <div class="card"><h3>No recibió al encuestador</h3><div id="kpi_no_recibido" class="value">0</div></div>
     </div>
 
     <div class="panel" style="margin-top:10px;">
-      <h2>Top 10 Motivos de Cancelación de Encuesta</h2>
-      <div id="topMotivosContainer"><p style="color:var(--muted);font-size:13px;">Sin datos aún.</p></div>
+      <h2>Motivos de Cancelación de Encuesta (Agrupados)</h2>
+      <div id="topMotivosContainer"><p style="color:var(--muted);font-size:13px;">Sin datos aÃºn.</p></div>
     </div>
 
     <div class="panel donut-panel">
@@ -433,7 +434,7 @@
     </div>
 
     <div class="panel" style="margin-top:10px;">
-      <h2>Estadísticas por Promotor</h2>
+      <h2>EstadÃ­sticas por Promotor</h2>
       <div class="user-controls">
         <label for="userSelect"><b>Seleccionar promotor:</b></label>
         <select id="userSelect" class="select"></select>
@@ -442,11 +443,12 @@
     </div>
 
     <div class="panel map-wrap">
-      <h2>Mapa de Encuestas por Categoría</h2>
+      <h2>Mapa de Encuestas por CategorÃ­a</h2>
       <div class="map-toggles">
         <label><input type="checkbox" id="toggleEncuestadas" checked /> <i class="chip" style="background:#16a34a"></i>Viviendas Encuestadas</label>
         <label><input type="checkbox" id="toggleNoEncontradas" checked /> <i class="chip" style="background:#f59e0b"></i>Viviendas No Encontradas</label>
         <label><input type="checkbox" id="toggleNoPobreza" checked /> <i class="chip" style="background:#dc2626"></i>Sin Pobreza Extrema</label>
+        <label><input type="checkbox" id="toggleNoBeneficiaria" checked /> <i class="chip" style="background:#7c3aed"></i>No se encontró a la beneficiaria</label>
         <label><input type="checkbox" id="toggleNoRecibido" checked /> <i class="chip" style="background:#2563eb"></i>No recibió al encuestador</label>
       </div>
       <div id="map"></div>
@@ -470,6 +472,7 @@
       encuestadas: null,
       noEncontradas: null,
       noPobreza: null,
+      noBeneficiaria: null,
       noRecibido: null
     };
 
@@ -578,15 +581,6 @@
       throw new Error('No se pudo cargar CONSOLIDADO_CSV.csv en ninguna fuente.');
     }
 
-    function getMetricas(rows) {
-      const total = rows.length;
-      const encuestadas = rows.filter((r) => esEncuestada(r)).length;
-      const noEncontradas = rows.filter((r) => esNo(r.se_encontro_vivienda)).length;
-      const noPobreza = rows.filter((r) => esNo(r.vivienda_pobreza_extrema)).length;
-      const noRecibido = rows.filter((r) => esNo(r.se_recibio_encuestado)).length;
-      return { total, encuestadas, noEncontradas, noPobreza, noRecibido };
-    }
-
     function tienePreguntasVacias(r) {
       return !toNorm(r.se_encontro_vivienda) &&
         !toNorm(r.vivienda_pobreza_extrema) &&
@@ -594,24 +588,56 @@
         !toNorm(r.se_encontro_beneficiaria);
     }
 
-    function esEncuestada(r) {
+    function tieneFormularioCapturado(r) {
+      return String(r.nombre || r.curp || r.telefono || r.fecha_nacimiento || r.calle || '').trim().length > 0;
+    }
+
+    function getCategoriaRegistro(r) {
+      if (esNo(r.se_encontro_vivienda)) return 'noEncontradas';
+      if (esNo(r.vivienda_pobreza_extrema)) return 'noPobreza';
+      if (esNo(r.se_recibio_encuestado)) return 'noRecibido';
+      if (esNo(r.se_encontro_beneficiaria)) return 'noBeneficiaria';
+
       if (
         esSi(r.se_encontro_vivienda) &&
         esSi(r.vivienda_pobreza_extrema) &&
         esSi(r.se_recibio_encuestado) &&
         esSi(r.se_encontro_beneficiaria)
       ) {
-        return true;
+        return tieneFormularioCapturado(r) ? 'encuestadas' : 'encuestadas';
       }
 
       // Compatibilidad con registros antiguos (antes de incorporar preguntas 1-4).
       if (tienePreguntasVacias(r)) {
         const tieneDatosPersona = String(r.nombre || r.curp || r.telefono || '').trim().length > 0;
         const cancelada = String(r.porque || '').trim().length > 0;
-        return tieneDatosPersona && !cancelada;
+        return tieneDatosPersona && !cancelada ? 'encuestadas' : 'sinClasificar';
       }
 
-      return false;
+      return 'sinClasificar';
+    }
+
+    function getMetricas(rows) {
+      const total = rows.length;
+      const metricas = {
+        total,
+        encuestadas: 0,
+        noEncontradas: 0,
+        noPobreza: 0,
+        noBeneficiaria: 0,
+        noRecibido: 0
+      };
+
+      rows.forEach((r) => {
+        const categoria = getCategoriaRegistro(r);
+        if (categoria in metricas) metricas[categoria] += 1;
+      });
+
+      return metricas;
+    }
+
+    function esEncuestada(r) {
+      return getCategoriaRegistro(r) === 'encuestadas';
     }
 
     function polarToCartesian(cx, cy, r, angle) {
@@ -635,11 +661,12 @@
     }
 
     function renderDonut(rows) {
-      const { total, encuestadas, noEncontradas, noPobreza, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, noEncontradas, noPobreza, noBeneficiaria, noRecibido } = getMetricas(rows);
       const segments = [
         { label: 'Viviendas Encuestadas', value: encuestadas, color: '#16a34a' },
         { label: 'Viviendas No Encontradas', value: noEncontradas, color: '#f59e0b' },
         { label: 'Sin Pobreza Extrema', value: noPobreza, color: '#dc2626' },
+        { label: 'No se encontró a la beneficiaria', value: noBeneficiaria, color: '#7c3aed' },
         { label: 'No recibió al encuestador', value: noRecibido, color: '#2563eb' }
       ];
 
@@ -677,17 +704,18 @@
     }
 
     function renderKpis(rows) {
-      const { total, encuestadas, noEncontradas, noPobreza, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, noEncontradas, noPobreza, noBeneficiaria, noRecibido } = getMetricas(rows);
 
       document.getElementById('kpi_total').textContent = total;
       document.getElementById('kpi_encuestadas').textContent = encuestadas;
       document.getElementById('kpi_no_encontradas').textContent = noEncontradas;
       document.getElementById('kpi_no_pobreza').textContent = noPobreza;
+      document.getElementById('kpi_no_beneficiaria').textContent = noBeneficiaria;
       document.getElementById('kpi_no_recibido').textContent = noRecibido;
     }
 
     function renderUserStats(rows) {
-      const { total, encuestadas, noEncontradas, noPobreza, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, noEncontradas, noPobreza, noBeneficiaria, noRecibido } = getMetricas(rows);
 
       const holder = document.getElementById('userStats');
       holder.innerHTML = `
@@ -695,6 +723,7 @@
         <div class="mini"><h3>Viviendas Encuestadas</h3><div class="value">${encuestadas}</div></div>
         <div class="mini"><h3>Viviendas No Encontradas</h3><div class="value">${noEncontradas}</div></div>
         <div class="mini"><h3>Sin Pobreza Extrema</h3><div class="value">${noPobreza}</div></div>
+        <div class="mini"><h3>No se encontró a la beneficiaria</h3><div class="value">${noBeneficiaria}</div></div>
         <div class="mini"><h3>No recibió al encuestador</h3><div class="value">${noRecibido}</div></div>
       `;
     }
@@ -708,64 +737,171 @@
         .trim();
     }
 
-    function levenshtein(a, b) {
-      if (!a.length) return b.length;
-      if (!b.length) return a.length;
-      const m = a.length, n = b.length;
-      const prev = Array.from({ length: n + 1 }, (_, j) => j);
-      const curr = new Array(n + 1);
-      for (let i = 1; i <= m; i++) {
-        curr[0] = i;
-        for (let j = 1; j <= n; j++) {
-          curr[j] = a[i - 1] === b[j - 1]
-            ? prev[j - 1]
-            : 1 + Math.min(prev[j], curr[j - 1], prev[j - 1]);
-        }
-        prev.splice(0, n + 1, ...curr);
-      }
-      return prev[n];
+    function contieneAlguno(textoNorm, palabras) {
+      return palabras.some((p) => textoNorm.includes(p));
     }
 
-    function similitud(a, b) {
-      const na = normalizarTexto(a);
-      const nb = normalizarTexto(b);
-      if (!na && !nb) return 1;
-      if (!na || !nb) return 0;
-      const dist = levenshtein(na, nb);
-      return 1 - dist / Math.max(na.length, nb.length);
-    }
-
-    function agruparMotivosFuzzy(rows, umbral = 0.65) {
-      const grupos = [];
-      rows.forEach((r) => {
-        const motivo = String(r.porque || '').trim();
-        if (!motivo) return;
-        let asignado = false;
-        for (const g of grupos) {
-          if (similitud(motivo, g.repr) >= umbral) {
-            g.count++;
-            if (!g.variantes.includes(motivo)) g.variantes.push(motivo);
-            asignado = true;
-            break;
-          }
-        }
-        if (!asignado) grupos.push({ repr: motivo, count: 1, variantes: [motivo] });
+    function sumarPuntajePorPalabras(textoNorm, palabras, puntajeBase = 1) {
+      let score = 0;
+      palabras.forEach((p) => {
+        if (textoNorm.includes(p)) score += puntajeBase;
       });
-      return grupos.sort((a, b) => b.count - a.count).slice(0, 10);
+      return score;
+    }
+
+    function categoriaPorEncuesta(categoriaEncuesta) {
+      if (categoriaEncuesta === 'noBeneficiaria') return 'noBeneficiaria';
+      if (categoriaEncuesta === 'noPobreza') return 'noPobreza';
+      if (categoriaEncuesta === 'noRecibido') return 'noRecibido';
+      if (categoriaEncuesta === 'noEncontradas') return 'noVivienda';
+      return null;
+    }
+
+    function inferirCategoriaMotivoIA(motivoNorm, categoriaEncuesta) {
+      const mencionaVivienda = contieneAlguno(motivoNorm, [
+        'vivienda', 'domicilio', 'casa', 'direccion', 'predio'
+      ]);
+      const mencionaBeneficiariaOPersona = contieneAlguno(motivoNorm, [
+        'beneficiaria', 'persona', 'titular', 'jefa de familia', 'duena', 'senora', 'habitante'
+      ]);
+      const esViviendaNoLocalizada = contieneAlguno(motivoNorm, [
+        'vivienda no localizada', 'vivienda no encontrada', 'domicilio no localizado',
+        'domicilio no encontrado', 'no se encontro la vivienda', 'no se encontro el domicilio',
+        'no se encontro domicilio', 'no se localizo la vivienda', 'no se localizo el domicilio',
+        'casa no localizada', 'casa no encontrada', 'no existe el domicilio', 'domicilio incorrecto',
+        'domicilio erroneo', 'direccion incorrecta', 'no existe la direccion',
+        'direccion no localizada', 'no coincide el domicilio', 'no corresponde el domicilio'
+      ]);
+
+      // Prioridad 1: texto menciona claramente vivienda/domicilio sin mencionar persona → noVivienda
+      if (esViviendaNoLocalizada && !mencionaBeneficiariaOPersona) {
+        return 'noVivienda';
+      }
+      // Prioridad 2: texto habla solo de vivienda sin mencionar persona → noVivienda
+      if (mencionaVivienda && !mencionaBeneficiariaOPersona && categoriaEncuesta === 'noEncontradas') {
+        return 'noVivienda';
+      }
+
+      const scores = {
+        noBeneficiaria: 0,
+        noVivienda: 0,
+        noPobreza: 0,
+        noInteres: 0,
+        noRecibido: 0
+      };
+
+      // Vivienda/domicilio no encontrado
+      scores.noVivienda += sumarPuntajePorPalabras(motivoNorm, [
+        'vivienda no localizada', 'vivienda no encontrada', 'domicilio no localizado',
+        'domicilio no encontrado', 'no se encontro la vivienda', 'no se encontro el domicilio',
+        'no se encontro domicilio', 'no se localizo la vivienda', 'no se localizo el domicilio',
+        'casa no localizada', 'casa no encontrada', 'no existe el domicilio', 'domicilio incorrecto',
+        'domicilio erroneo', 'direccion incorrecta', 'no existe la direccion', 'direccion no localizada'
+      ], 2);
+
+      // Persona/beneficiaria no encontrada — cualquier motivo que involucre no encontrar a la persona
+      scores.noBeneficiaria += sumarPuntajePorPalabras(motivoNorm, [
+        'beneficiaria', 'beneficiaria no localizada', 'beneficiaria no encontrada',
+        'no se encontro a la beneficiaria', 'no se localizo a la beneficiaria',
+        'persona no localizada', 'persona no encontrada', 'no se encontro a la persona',
+        'titular ausente', 'titular no encontrada', 'jefa de familia ausente',
+        'ausente', 'no estaba', 'no se encontraba', 'no habia nadie', 'nadie en casa',
+        'no habia persona', 'no habia alguien', 'estaba sola', 'fue a trabajar',
+        'salio a trabajar', 'andaba trabajando', 'estaba trabajando', 'habia salido',
+        'no estaba en casa', 'no se encontro en el domicilio', 'fuera de casa'
+      ], 2);
+
+      // No es vivienda en situación de pobreza extrema (más de 2 niveles, cochera, etc.)
+      scores.noPobreza += sumarPuntajePorPalabras(motivoNorm, [
+        'pobreza extrema', '2 niveles', 'dos niveles', '3 niveles', 'tres niveles',
+        'cochera', 'cochera en funcionamiento', 'garage', 'garaje', 'vivienda grande',
+        'no luce pobreza', 'casa grande', 'no es de pobreza', 'no aplica pobreza',
+        'no cumple criterio', 'no es beneficiaria', 'no califica'
+      ], 2);
+
+      // No tiene interés en el programa
+      scores.noInteres += sumarPuntajePorPalabras(motivoNorm, [
+        'interes', 'no le interesa', 'no interesa', 'sin interes',
+        'no quiere el programa', 'no quiso el programa', 'no desea el programa',
+        'no quiere apoyo', 'rechazo programa', 'no acepta', 'no quiere participar',
+        'no desea participar', 'no quiere beneficio', 'no le interesa el apoyo'
+      ], 2);
+
+      // No se recibió al encuestador o promotor (está en casa pero no abre/recibe)
+      scores.noRecibido += sumarPuntajePorPalabras(motivoNorm, [
+        'no recibio', 'no se recibio', 'no abrio', 'no atendio', 'no abrio la puerta',
+        'encuestador', 'promotor', 'no quiso recibir', 'no quiso atender',
+        'no permitio', 'no dejo pasar', 'no contesto', 'no quiso hablar',
+        'no quiso salir', 'no quiso abrir'
+      ], 2);
+
+      // El dato estructural del formulario es la señal más confiable (+4 para que domine sobre texto vago)
+      const contexto = categoriaPorEncuesta(categoriaEncuesta);
+      if (contexto && scores[contexto] !== undefined) {
+        scores[contexto] += 4;
+      }
+
+      const ranking = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      const [mejorCategoria, mejorScore] = ranking[0];
+
+      if (mejorScore > 0) return mejorCategoria;
+      if (contexto) return contexto;
+      return null;
+    }
+
+    function categoriaCanonicaMotivo(row) {
+      const motivoOriginal = String(row.porque || '').trim();
+      const motivo = normalizarTexto(motivoOriginal);
+      const categoriaEncuesta = getCategoriaRegistro(row);
+
+      const categoriaIA = inferirCategoriaMotivoIA(motivo, categoriaEncuesta);
+      if (categoriaIA) return categoriaIA;
+
+      if (motivo) return 'otro';
+      return null;
+    }
+
+    function agruparMotivosCanonicos(rows) {
+      const catalogo = [
+        { key: 'noBeneficiaria', label: 'No se encontró a la beneficiaria' },
+        { key: 'noVivienda', label: 'No se encontró la vivienda' },
+        { key: 'noPobreza', label: 'No es vivienda en situación de pobreza extrema' },
+        { key: 'noInteres', label: 'No tiene interés en el programa' },
+        { key: 'noRecibido', label: 'No se recibió al encuestador o promotor' },
+        { key: 'otro', label: 'Otro' }
+      ];
+
+      const grupos = new Map(catalogo.map((c) => [c.key, { key: c.key, repr: c.label, count: 0, variantes: [] }]));
+
+      rows.forEach((r) => {
+        const key = categoriaCanonicaMotivo(r);
+        if (!key || !grupos.has(key)) return;
+        const entry = grupos.get(key);
+        entry.count += 1;
+        const motivo = String(r.porque || '').trim();
+        if (motivo && !entry.variantes.includes(motivo)) {
+          entry.variantes.push(motivo);
+        }
+      });
+
+      return catalogo
+        .map((c) => grupos.get(c.key))
+        .filter((g) => g && g.count > 0)
+        .sort((a, b) => b.count - a.count);
     }
 
     function renderTopMotivos(rows) {
-      const grupos = agruparMotivosFuzzy(rows);
+      const grupos = agruparMotivosCanonicos(rows);
       const container = document.getElementById('topMotivosContainer');
       if (!grupos.length) {
-        container.innerHTML = '<p style="color:var(--muted);font-size:13px;">Sin datos de motivos de cancelación.</p>';
+        container.innerHTML = '<p style="color:var(--muted);font-size:13px;">Sin datos de motivos de cancelaciÃ³n.</p>';
         return;
       }
       const max = grupos[0].count;
       container.innerHTML = grupos.map((g, i) => {
         const pct = max > 0 ? Math.round((g.count / max) * 100) : 0;
-        const variantes = g.variantes.length > 1
-          ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;">Variantes similares: ${g.variantes.slice(1, 4).join(' • ')}${g.variantes.length > 4 ? '...' : ''}</div>`
+        const variantes = g.variantes.length > 0
+          ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;">Ejemplos: ${g.variantes.slice(0, 3).join(' | ')}${g.variantes.length > 3 ? '...' : ''}</div>`
           : '';
         return `
           <div style="margin-bottom:14px;">
@@ -803,18 +939,16 @@
       rows.forEach((r) => {
         const nom = String(r.capturista_nombre || 'Sin Promotor').trim();
         if (!promotoresMap.has(nom)) {
-          promotoresMap.set(nom, { encuestadas: 0, noEncontradas: 0, noPobreza: 0, noRecibido: 0 });
+          promotoresMap.set(nom, { encuestadas: 0, noEncontradas: 0, noPobreza: 0, noBeneficiaria: 0, noRecibido: 0 });
         }
         const datos = promotoresMap.get(nom);
-        if (esEncuestada(r)) datos.encuestadas++;
-        if (esNo(r.se_encontro_vivienda)) datos.noEncontradas++;
-        if (esNo(r.vivienda_pobreza_extrema)) datos.noPobreza++;
-        if (esNo(r.se_recibio_encuestado)) datos.noRecibido++;
+        const categoria = getCategoriaRegistro(r);
+        if (categoria in datos) datos[categoria]++;
       });
 
       const promotores = Array.from(promotoresMap.entries())
         .map(([nombre, datos]) => ({ nombre, ...datos }))
-        .sort((a, b) => (b.encuestadas + b.noEncontradas + b.noPobreza + b.noRecibido) - (a.encuestadas + a.noEncontradas + a.noPobreza + a.noRecibido));
+        .sort((a, b) => (b.encuestadas + b.noEncontradas + b.noPobreza + b.noBeneficiaria + b.noRecibido) - (a.encuestadas + a.noEncontradas + a.noPobreza + a.noBeneficiaria + a.noRecibido));
 
       const container = document.getElementById('promotorGraficaContainer');
       if (!promotores.length) {
@@ -826,22 +960,24 @@
         encuestadas: '#16a34a',
         noEncontradas: '#f59e0b',
         noPobreza: '#dc2626',
+        noBeneficiaria: '#7c3aed',
         noRecibido: '#2563eb'
       };
       const etiquetasLargas = {
         encuestadas: 'Viviendas Encuestadas',
         noEncontradas: 'Viviendas No Encontradas',
         noPobreza: 'Sin Pobreza Extrema',
+        noBeneficiaria: 'No se encontró a la beneficiaria',
         noRecibido: 'No recibió al encuestador'
       };
       const etiquetasCortas = {
         encuestadas: 'Encuestadas',
         noEncontradas: 'No Encontradas',
         noPobreza: 'Sin Pobreza',
+        noBeneficiaria: 'No Beneficiaria',
         noRecibido: 'No Recibido'
       };
 
-      const maxTotal = Math.max(...promotores.map((p) => p.encuestadas + p.noEncontradas + p.noPobreza + p.noRecibido), 1);
       const conScroll = promotores.length > 10;
       const alturaScroll = conScroll ? '400px' : 'auto';
       const overflowY = conScroll ? 'auto' : 'visible';
@@ -858,11 +994,12 @@
           <div class="promotor-scroll" style="overflow-y:${overflowY};max-height:${alturaScroll};padding-right:${conScroll ? '8px' : '0'};">
             <div style="display:grid;gap:12px;">
               ${promotores.map((p) => {
-                const total = p.encuestadas + p.noEncontradas + p.noPobreza + p.noRecibido;
+                const total = p.encuestadas + p.noEncontradas + p.noPobreza + p.noBeneficiaria + p.noRecibido;
                 const segmentos = [
                   { key: 'encuestadas', value: p.encuestadas },
                   { key: 'noEncontradas', value: p.noEncontradas },
                   { key: 'noPobreza', value: p.noPobreza },
+                  { key: 'noBeneficiaria', value: p.noBeneficiaria },
                   { key: 'noRecibido', value: p.noRecibido }
                 ];
                 return `
@@ -877,7 +1014,7 @@
                           : '';
                       }).join('')}
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:10px;color:var(--muted);">
+                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:10px;color:var(--muted);">
                       ${segmentos.map((seg) => `<span style="white-space:nowrap;"><b>${seg.value}</b> ${etiquetasCortas[seg.key]}</span>`).join('')}
                     </div>
                   </div>
@@ -924,6 +1061,7 @@
       markerLayers.encuestadas = L.layerGroup().addTo(map);
       markerLayers.noEncontradas = L.layerGroup().addTo(map);
       markerLayers.noPobreza = L.layerGroup().addTo(map);
+        markerLayers.noBeneficiaria = L.layerGroup().addTo(map);
       markerLayers.noRecibido = L.layerGroup().addTo(map);
 
       cargarManzanas();
@@ -932,7 +1070,7 @@
     function cargarManzanas() {
       try {
         if (typeof MANZANAS_GEOJSON === 'undefined') {
-          console.error('MANZANAS_GEOJSON no está definido. Verifica que manzanas-data.js se cargó correctamente.');
+          console.error('MANZANAS_GEOJSON no estÃ¡ definido. Verifica que manzanas-data.js se cargÃ³ correctamente.');
           return;
         }
         console.log('GeoJSON disponible:', MANZANAS_GEOJSON.features.length, 'features');
@@ -944,9 +1082,9 @@
 
         const colorConglomerado = {};
         conglomeradosUnicos.forEach((id, i) => {
-          // Ángulo áureo: garantiza máxima separación perceptual entre colores consecutivos
+          // Ãngulo Ã¡ureo: garantiza mÃ¡xima separaciÃ³n perceptual entre colores consecutivos
           const hue = Math.round((i * 137.508) % 360);
-          // Alternar saturación/luminosidad para mayor diferenciación adicional
+          // Alternar saturaciÃ³n/luminosidad para mayor diferenciaciÃ³n adicional
           const sat = i % 2 === 0 ? 78 : 65;
           const lum = i % 3 === 0 ? 40 : (i % 3 === 1 ? 50 : 45);
           colorConglomerado[id] = `hsl(${hue}, ${sat}%, ${lum}%)`;
@@ -957,7 +1095,7 @@
           return colorConglomerado[cong] || '#888';
         };
 
-        // Las coordenadas ya están en EPSG:4326 (WGS 84)
+        // Las coordenadas ya estÃ¡n en EPSG:4326 (WGS 84)
         const manzanaFeaturas = new Map();
         const conglomeradoCentros = new Map();
 
@@ -1084,12 +1222,12 @@
       const cap = String(r.capturista_nombre || 'Sin capturista').trim();
       const fecha = String(r.fecha_captura || 'Sin fecha').trim();
 
-      // Detectar cancelación: cualquier pregunta 1-4 con valor "No"
+      // Detectar cancelaciÃ³n: cualquier pregunta 1-4 con valor "No"
       const cancelChecks = [
-        { label: '1. ¿Se encontró la vivienda?',          val: r.se_encontro_vivienda },
-        { label: '2. ¿Vivienda en pobreza extrema?',       val: r.vivienda_pobreza_extrema },
-        { label: '3. ¿Se recibió al encuestado?',          val: r.se_recibio_encuestado },
-        { label: '4. ¿Se encontró a la beneficiaria?',     val: r.se_encontro_beneficiaria },
+        { label: '1. Â¿Se encontrÃ³ la vivienda?',          val: r.se_encontro_vivienda },
+        { label: '2. Â¿Vivienda en pobreza extrema?',       val: r.vivienda_pobreza_extrema },
+        { label: '3. Â¿Se recibiÃ³ al encuestado?',          val: r.se_recibio_encuestado },
+        { label: '4. Â¿Se encontrÃ³ a la beneficiaria?',     val: r.se_encontro_beneficiaria },
       ];
       const cancelTrigger = cancelChecks.find((c) => String(c.val || '').trim().toLowerCase() === 'no');
       const encuestaCancelada = !!cancelTrigger;
@@ -1097,7 +1235,7 @@
       const cancelacionBlock = encuestaCancelada ? `
           <hr style="border:none;border-top:2px solid #b91c1c;margin:6px 0;">
           <div style="font-weight:700;color:#b91c1c;margin-bottom:4px;">&#9888; Encuesta cancelada</div>
-          <b>Motivo de cancelación:</b> ${cancelTrigger.label} = <span style="color:#b91c1c;font-weight:bold;">No</span><br>
+          <b>Motivo de cancelaciÃ³n:</b> ${cancelTrigger.label} = <span style="color:#b91c1c;font-weight:bold;">No</span><br>
           ${motivo ? `<b>Detalle:</b> ${motivo}` : ''}
       ` : '';
 
@@ -1139,20 +1277,24 @@
           fillOpacity: 1
         };
 
-        if (esEncuestada(r)) {
-          L.circleMarker(coord, { ...common, fillColor: '#16a34a' }).bindPopup(popupHtml(r)).addTo(markerLayers.encuestadas);
-          bounds.push(coord);
-        }
-        if (esNo(r.se_encontro_vivienda)) {
-          L.circleMarker(coord, { ...common, fillColor: '#f59e0b' }).bindPopup(popupHtml(r)).addTo(markerLayers.noEncontradas);
-          bounds.push(coord);
-        }
-        if (esNo(r.vivienda_pobreza_extrema)) {
-          L.circleMarker(coord, { ...common, fillColor: '#dc2626' }).bindPopup(popupHtml(r)).addTo(markerLayers.noPobreza);
-          bounds.push(coord);
-        }
-        if (esNo(r.se_recibio_encuestado)) {
-          L.circleMarker(coord, { ...common, fillColor: '#2563eb' }).bindPopup(popupHtml(r)).addTo(markerLayers.noRecibido);
+        const categoria = getCategoriaRegistro(r);
+        const colorByCategoria = {
+          encuestadas: '#16a34a',
+          noEncontradas: '#f59e0b',
+          noPobreza: '#dc2626',
+          noBeneficiaria: '#7c3aed',
+          noRecibido: '#2563eb'
+        };
+        const layerByCategoria = {
+          encuestadas: markerLayers.encuestadas,
+          noEncontradas: markerLayers.noEncontradas,
+          noPobreza: markerLayers.noPobreza,
+          noBeneficiaria: markerLayers.noBeneficiaria,
+          noRecibido: markerLayers.noRecibido
+        };
+
+        if (layerByCategoria[categoria]) {
+          L.circleMarker(coord, { ...common, fillColor: colorByCategoria[categoria] }).bindPopup(popupHtml(r)).addTo(layerByCategoria[categoria]);
           bounds.push(coord);
         }
       });
@@ -1161,6 +1303,7 @@
         ['toggleEncuestadas', markerLayers.encuestadas],
         ['toggleNoEncontradas', markerLayers.noEncontradas],
         ['toggleNoPobreza', markerLayers.noPobreza],
+        ['toggleNoBeneficiaria', markerLayers.noBeneficiaria],
         ['toggleNoRecibido', markerLayers.noRecibido]
       ];
       reglas.forEach(([id, layer]) => {
@@ -1187,7 +1330,7 @@
       renderKpis(registros);
       renderTopMotivos(registros);
 
-      // Solo Estadísticas por Promotor y Mapa: filtrados por promotor seleccionado
+      // Solo EstadÃ­sticas por Promotor y Mapa: filtrados por promotor seleccionado
       renderUserStats(registrosFiltrados);
       renderMapa(registrosFiltrados);
     }
@@ -1205,7 +1348,7 @@
       }
     }
 
-    ['toggleEncuestadas', 'toggleNoEncontradas', 'toggleNoPobreza', 'toggleNoRecibido']
+    ['toggleEncuestadas', 'toggleNoEncontradas', 'toggleNoPobreza', 'toggleNoBeneficiaria', 'toggleNoRecibido']
       .forEach((id) => {
         document.getElementById(id).addEventListener('change', () => renderMapa(registrosFiltrados));
       });
@@ -1234,3 +1377,6 @@
   </script>
 </body>
 </html>
+
+
+
