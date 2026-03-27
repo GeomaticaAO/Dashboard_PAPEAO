@@ -82,6 +82,27 @@
       align-items: center;
     }
 
+    .goal-progress {
+      margin-left: auto;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .goal-progress b {
+      color: var(--brand-3);
+    }
+
+    .goal-number {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--brand-3);
+    }
+
     .btn {
       border: 0;
       border-radius: 8px;
@@ -347,6 +368,10 @@
       .donut-panel { grid-template-columns: 1fr; }
       .user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .layout { grid-template-columns: 1fr; }
+      .goal-progress {
+        margin-left: 0;
+        width: 100%;
+      }
     }
 
     @media print {
@@ -395,6 +420,11 @@
     <div class="toolbar">
       <button class="btn btn-primary" onclick="cargarDatos()">Actualizar dashboard</button>
       <button class="btn btn-export" onclick="exportarPDF()">Exportar</button>
+      <div class="goal-progress" id="goalProgress">
+        <span><b>Meta:</b> 1,060 viviendas</span>
+        <span><b>Avance:</b> <span id="metaAvancePct" class="goal-number">0.0%</span> (<span id="metaAvanceCount" class="goal-number">0</span>/1,060)</span>
+        <span><b>Días hábiles transcurridos:</b> <span id="diasHabiles" class="goal-number">0</span></span>
+      </div>
       <div id="status" class="status">Esperando carga de datos...</div>
     </div>
 
@@ -434,7 +464,7 @@
     </div>
 
     <div class="panel" style="margin-top:10px;">
-      <h2>EstadÃ­sticas por Promotor</h2>
+      <h2>Estadísticas por Promotor</h2>
       <div class="user-controls">
         <label for="userSelect"><b>Seleccionar promotor:</b></label>
         <select id="userSelect" class="select"></select>
@@ -443,7 +473,7 @@
     </div>
 
     <div class="panel map-wrap">
-      <h2>Mapa de Encuestas por CategorÃ­a</h2>
+      <h2>Mapa de Encuestas por Categoría</h2>
       <div class="map-toggles">
         <label><input type="checkbox" id="toggleEncuestadas" checked /> <i class="chip" style="background:#16a34a"></i>Viviendas Encuestadas</label>
         <label><input type="checkbox" id="toggleNoEncontradas" checked /> <i class="chip" style="background:#f59e0b"></i>Viviendas No Encontradas</label>
@@ -462,6 +492,10 @@
     crossorigin=""
   ></script>
   <script>
+    const OBJETIVO_ENCUESTADAS = 1060;
+    const FECHA_INICIO_OPERATIVO = new Date();
+    const CAMPOS_FECHA_CANDIDATOS = ['fecha_captura', 'fecha', 'fecha_visita', 'created_at'];
+
     let registros = [];
     let registrosFiltrados = [];
     let map;
@@ -636,6 +670,77 @@
       return metricas;
     }
 
+    function toStartOfDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function parseFechaFlexible(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+
+      const isoLike = raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+      if (isoLike) {
+        const year = Number(isoLike[1]);
+        const month = Number(isoLike[2]) - 1;
+        const day = Number(isoLike[3]);
+        const d = new Date(year, month, day);
+        return Number.isNaN(d.getTime()) ? null : toStartOfDay(d);
+      }
+
+      const latamLike = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/);
+      if (latamLike) {
+        const day = Number(latamLike[1]);
+        const month = Number(latamLike[2]) - 1;
+        let year = Number(latamLike[3]);
+        if (year < 100) year += 2000;
+        const d = new Date(year, month, day);
+        return Number.isNaN(d.getTime()) ? null : toStartOfDay(d);
+      }
+
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : toStartOfDay(d);
+    }
+
+    function obtenerFechaInicioProceso(rows) {
+      let minDate = null;
+      rows.forEach((r) => {
+        CAMPOS_FECHA_CANDIDATOS.forEach((campo) => {
+          const date = parseFechaFlexible(r[campo]);
+          if (!date) return;
+          if (!minDate || date < minDate) minDate = date;
+        });
+      });
+      return minDate;
+    }
+
+    function contarDiasHabilesTranscurridos(desde, hasta) {
+      if (!desde || !hasta) return 0;
+
+      const start = toStartOfDay(desde);
+      const end = toStartOfDay(hasta);
+      if (start > end) return 0;
+
+      let dias = 0;
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        const day = cursor.getDay();
+        if (day !== 0 && day !== 6) dias += 1;
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return dias;
+    }
+
+    function renderMetaObjetivo(rows, encuestadas) {
+      const avance = OBJETIVO_ENCUESTADAS > 0 ? (encuestadas / OBJETIVO_ENCUESTADAS) * 100 : 0;
+      const pct = `${Math.max(0, avance).toFixed(1)}%`;
+      const inicio = toStartOfDay(FECHA_INICIO_OPERATIVO);
+      const diasHabiles = contarDiasHabilesTranscurridos(inicio, new Date());
+
+      document.getElementById('metaAvancePct').textContent = pct;
+      document.getElementById('metaAvanceCount').textContent = Number(encuestadas || 0).toLocaleString('es-MX');
+      document.getElementById('diasHabiles').textContent = Number(diasHabiles).toLocaleString('es-MX');
+    }
+
     function esEncuestada(r) {
       return getCategoriaRegistro(r) === 'encuestadas';
     }
@@ -712,6 +817,7 @@
       document.getElementById('kpi_no_pobreza').textContent = noPobreza;
       document.getElementById('kpi_no_beneficiaria').textContent = noBeneficiaria;
       document.getElementById('kpi_no_recibido').textContent = noRecibido;
+      renderMetaObjetivo(rows, encuestadas);
     }
 
     function renderUserStats(rows) {
