@@ -1173,17 +1173,40 @@
       cargarManzanas();
     }
 
-    function cargarManzanas() {
-      try {
-        if (typeof MANZANAS_GEOJSON === 'undefined') {
-          console.error('MANZANAS_GEOJSON no estÃ¡ definido. Verifica que manzanas-data.js se cargÃ³ correctamente.');
-          return;
+    async function obtenerGeojsonManzanas() {
+      const fuentes = [
+        './Manzanas_PAPEAO.geojson',
+        'https://raw.githubusercontent.com/GeomaticaAO/APP_PAPEAO_MGE/main/Manzanas_PAPEAO.geojson'
+      ];
+
+      for (const url of fuentes) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data && Array.isArray(data.features) && data.features.length) {
+            return { data, fuente: url };
+          }
+        } catch {
         }
-        console.log('GeoJSON disponible:', MANZANAS_GEOJSON.features.length, 'features');
+      }
+
+      if (typeof MANZANAS_GEOJSON !== 'undefined' && Array.isArray(MANZANAS_GEOJSON.features)) {
+        return { data: MANZANAS_GEOJSON, fuente: 'manzanas-data.js (respaldo)' };
+      }
+
+      throw new Error('No se pudo cargar Manzanas_PAPEAO.geojson en ninguna fuente.');
+    }
+
+    async function cargarManzanas() {
+      try {
+        const geojsonResult = await obtenerGeojsonManzanas();
+        const geojson = geojsonResult.data;
+        console.log('GeoJSON disponible:', geojson.features.length, 'features. Fuente:', geojsonResult.fuente);
 
         // Colores distintos para cada conglomerado (HSL distribuido)
         const conglomeradosUnicos = [...new Set(
-          MANZANAS_GEOJSON.features.map(f => String(parseInt(f.properties?.CONGLOMERADO_JEFAS || 0)))
+          geojson.features.map(f => String(parseInt(f.properties?.CONGLOMERADO_JEFAS || 0)))
         )].sort((a, b) => parseInt(a) - parseInt(b));
 
         const colorConglomerado = {};
@@ -1205,7 +1228,7 @@
         const manzanaFeaturas = new Map();
         const conglomeradoCentros = new Map();
 
-        manzanasLayer = L.geoJSON(MANZANAS_GEOJSON, {
+        manzanasLayer = L.geoJSON(geojson, {
           style: (feature) => ({
             color: getColor(feature),
             weight: 1.5,
