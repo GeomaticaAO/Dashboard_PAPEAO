@@ -124,7 +124,7 @@
       margin-top: 12px;
       display: grid;
       gap: 10px;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
 
     .donut-panel {
@@ -252,7 +252,7 @@
 
     .user-stats {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 10px;
     }
 
@@ -432,7 +432,8 @@
       <div class="card"><h3>Total de Registros</h3><div id="kpi_total" class="value">0</div></div>
       <div class="card"><h3>Viviendas Encuestadas</h3><div id="kpi_encuestadas" class="value">0</div></div>
       <div class="card"><h3>Viviendas No Encontradas</h3><div id="kpi_no_encontradas" class="value">0</div></div>
-      <div class="card"><h3>Sin Pobreza Extrema</h3><div id="kpi_no_pobreza" class="value">0</div></div>
+      <div class="card"><h3>Beneficiaria sin INE vigente</h3><div id="kpi_no_ine_vigente" class="value">0</div></div>
+      <div class="card"><h3>Vivienda sin menores de 12</h3><div id="kpi_no_menores_12" class="value">0</div></div>
       <div class="card"><h3>No se encontró a la beneficiaria</h3><div id="kpi_no_beneficiaria" class="value">0</div></div>
       <div class="card"><h3>No recibió al encuestador</h3><div id="kpi_no_recibido" class="value">0</div></div>
     </div>
@@ -477,7 +478,8 @@
       <div class="map-toggles">
         <label><input type="checkbox" id="toggleEncuestadas" checked /> <i class="chip" style="background:#16a34a"></i>Viviendas Encuestadas</label>
         <label><input type="checkbox" id="toggleNoEncontradas" checked /> <i class="chip" style="background:#f59e0b"></i>Viviendas No Encontradas</label>
-        <label><input type="checkbox" id="toggleNoPobreza" checked /> <i class="chip" style="background:#dc2626"></i>Sin Pobreza Extrema</label>
+        <label><input type="checkbox" id="toggleNoIneVigente" checked /> <i class="chip" style="background:#dc2626"></i>Beneficiaria sin INE vigente</label>
+        <label><input type="checkbox" id="toggleNoMenores12" checked /> <i class="chip" style="background:#b91c1c"></i>Vivienda sin menores de 12</label>
         <label><input type="checkbox" id="toggleNoBeneficiaria" checked /> <i class="chip" style="background:#7c3aed"></i>No se encontró a la beneficiaria</label>
         <label><input type="checkbox" id="toggleNoRecibido" checked /> <i class="chip" style="background:#2563eb"></i>No recibió al encuestador</label>
       </div>
@@ -505,10 +507,24 @@
     const markerLayers = {
       encuestadas: null,
       noEncontradas: null,
-      noPobreza: null,
+      noIneVigente: null,
+      noMenores12: null,
       noBeneficiaria: null,
       noRecibido: null
     };
+
+    function valorCampo(row, campos) {
+      for (const campo of campos) {
+        const value = String(row[campo] || '').trim();
+        if (value) return value;
+      }
+      return '';
+    }
+
+    function esSiOVacio(value) {
+      const norm = toNorm(value);
+      return norm === '' || norm === 'si';
+    }
 
     function setStatus(msg, isOk = true) {
       const el = document.getElementById('status');
@@ -616,10 +632,11 @@
     }
 
     function tienePreguntasVacias(r) {
-      return !toNorm(r.se_encontro_vivienda) &&
-        !toNorm(r.vivienda_pobreza_extrema) &&
-        !toNorm(r.se_recibio_encuestado) &&
-        !toNorm(r.se_encontro_beneficiaria);
+      return !toNorm(valorCampo(r, ['se_encontro_vivienda'])) &&
+        !toNorm(valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente'])) &&
+        !toNorm(valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12'])) &&
+        !toNorm(valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor'])) &&
+        !toNorm(valorCampo(r, ['se_encontro_beneficiaria']));
     }
 
     function tieneFormularioCapturado(r) {
@@ -627,16 +644,24 @@
     }
 
     function getCategoriaRegistro(r) {
-      if (esNo(r.se_encontro_vivienda)) return 'noEncontradas';
-      if (esNo(r.vivienda_pobreza_extrema)) return 'noPobreza';
-      if (esNo(r.se_recibio_encuestado)) return 'noRecibido';
-      if (esNo(r.se_encontro_beneficiaria)) return 'noBeneficiaria';
+      const seEncontroVivienda = valorCampo(r, ['se_encontro_vivienda']);
+      const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente']);
+      const habitanMenores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12']);
+      const seRecibio = valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor']);
+      const seEncontroBeneficiaria = valorCampo(r, ['se_encontro_beneficiaria']);
+
+      if (esNo(seEncontroVivienda)) return 'noEncontradas';
+      if (esNo(ineVigente)) return 'noIneVigente';
+      if (esNo(habitanMenores12)) return 'noMenores12';
+      if (esNo(seRecibio)) return 'noRecibido';
+      if (esNo(seEncontroBeneficiaria)) return 'noBeneficiaria';
 
       if (
-        esSi(r.se_encontro_vivienda) &&
-        esSi(r.vivienda_pobreza_extrema) &&
-        esSi(r.se_recibio_encuestado) &&
-        esSi(r.se_encontro_beneficiaria)
+        esSiOVacio(seEncontroVivienda) &&
+        esSiOVacio(ineVigente) &&
+        esSiOVacio(habitanMenores12) &&
+        esSiOVacio(seRecibio) &&
+        esSiOVacio(seEncontroBeneficiaria)
       ) {
         return tieneFormularioCapturado(r) ? 'encuestadas' : 'encuestadas';
       }
@@ -657,7 +682,8 @@
         total,
         encuestadas: 0,
         noEncontradas: 0,
-        noPobreza: 0,
+        noIneVigente: 0,
+        noMenores12: 0,
         noBeneficiaria: 0,
         noRecibido: 0
       };
@@ -766,11 +792,12 @@
     }
 
     function renderDonut(rows) {
-      const { total, encuestadas, noEncontradas, noPobreza, noBeneficiaria, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
       const segments = [
         { label: 'Viviendas Encuestadas', value: encuestadas, color: '#16a34a' },
         { label: 'Viviendas No Encontradas', value: noEncontradas, color: '#f59e0b' },
-        { label: 'Sin Pobreza Extrema', value: noPobreza, color: '#dc2626' },
+        { label: 'Beneficiaria sin INE vigente', value: noIneVigente, color: '#dc2626' },
+        { label: 'Vivienda sin menores de 12', value: noMenores12, color: '#b91c1c' },
         { label: 'No se encontró a la beneficiaria', value: noBeneficiaria, color: '#7c3aed' },
         { label: 'No recibió al encuestador', value: noRecibido, color: '#2563eb' }
       ];
@@ -809,26 +836,28 @@
     }
 
     function renderKpis(rows) {
-      const { total, encuestadas, noEncontradas, noPobreza, noBeneficiaria, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
 
       document.getElementById('kpi_total').textContent = total;
       document.getElementById('kpi_encuestadas').textContent = encuestadas;
       document.getElementById('kpi_no_encontradas').textContent = noEncontradas;
-      document.getElementById('kpi_no_pobreza').textContent = noPobreza;
+      document.getElementById('kpi_no_ine_vigente').textContent = noIneVigente;
+      document.getElementById('kpi_no_menores_12').textContent = noMenores12;
       document.getElementById('kpi_no_beneficiaria').textContent = noBeneficiaria;
       document.getElementById('kpi_no_recibido').textContent = noRecibido;
       renderMetaObjetivo(rows, encuestadas);
     }
 
     function renderUserStats(rows) {
-      const { total, encuestadas, noEncontradas, noPobreza, noBeneficiaria, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
 
       const holder = document.getElementById('userStats');
       holder.innerHTML = `
         <div class="mini"><h3>Total de Registros</h3><div class="value">${total}</div></div>
         <div class="mini"><h3>Viviendas Encuestadas</h3><div class="value">${encuestadas}</div></div>
         <div class="mini"><h3>Viviendas No Encontradas</h3><div class="value">${noEncontradas}</div></div>
-        <div class="mini"><h3>Sin Pobreza Extrema</h3><div class="value">${noPobreza}</div></div>
+        <div class="mini"><h3>Beneficiaria sin INE vigente</h3><div class="value">${noIneVigente}</div></div>
+        <div class="mini"><h3>Vivienda sin menores de 12</h3><div class="value">${noMenores12}</div></div>
         <div class="mini"><h3>No se encontró a la beneficiaria</h3><div class="value">${noBeneficiaria}</div></div>
         <div class="mini"><h3>No recibió al encuestador</h3><div class="value">${noRecibido}</div></div>
       `;
@@ -857,7 +886,8 @@
 
     function categoriaPorEncuesta(categoriaEncuesta) {
       if (categoriaEncuesta === 'noBeneficiaria') return 'noBeneficiaria';
-      if (categoriaEncuesta === 'noPobreza') return 'noPobreza';
+      if (categoriaEncuesta === 'noIneVigente') return 'noIneVigente';
+      if (categoriaEncuesta === 'noMenores12') return 'noMenores12';
       if (categoriaEncuesta === 'noRecibido') return 'noRecibido';
       if (categoriaEncuesta === 'noEncontradas') return 'noVivienda';
       return null;
@@ -891,7 +921,8 @@
       const scores = {
         noBeneficiaria: 0,
         noVivienda: 0,
-        noPobreza: 0,
+        noIneVigente: 0,
+        noMenores12: 0,
         noInteres: 0,
         noRecibido: 0
       };
@@ -917,12 +948,17 @@
         'no estaba en casa', 'no se encontro en el domicilio', 'fuera de casa'
       ], 2);
 
-      // No es vivienda en situación de pobreza extrema (más de 2 niveles, cochera, etc.)
-      scores.noPobreza += sumarPuntajePorPalabras(motivoNorm, [
-        'pobreza extrema', '2 niveles', 'dos niveles', '3 niveles', 'tres niveles',
-        'cochera', 'cochera en funcionamiento', 'garage', 'garaje', 'vivienda grande',
-        'no luce pobreza', 'casa grande', 'no es de pobreza', 'no aplica pobreza',
-        'no cumple criterio', 'no es beneficiaria', 'no califica'
+      // Beneficiaria no cuenta con INE vigente
+      scores.noIneVigente += sumarPuntajePorPalabras(motivoNorm, [
+        'ine', 'no cuenta con ine', 'ine no vigente', 'ine vencida', 'ine expirada',
+        'credencial vencida', 'credencial no vigente', 'sin ine vigente', 'sin credencial vigente'
+      ], 2);
+
+      // En la vivienda no habitan menores de 12 anos
+      scores.noMenores12 += sumarPuntajePorPalabras(motivoNorm, [
+        'no habitan menores', 'no hay menores', 'sin menores', 'no viven menores',
+        'no habitan menores de 12', 'no hay menores de 12', 'sin menores de 12',
+        'no viven ninos', 'no hay ninos', 'sin ninos'
       ], 2);
 
       // No tiene interés en el programa
@@ -971,7 +1007,8 @@
       const catalogo = [
         { key: 'noBeneficiaria', label: 'No se encontró a la beneficiaria' },
         { key: 'noVivienda', label: 'No se encontró la vivienda' },
-        { key: 'noPobreza', label: 'No es vivienda en situación de pobreza extrema' },
+        { key: 'noIneVigente', label: 'Beneficiaria no cuenta con INE vigente' },
+        { key: 'noMenores12', label: 'En la vivienda no habitan menores de 12 años' },
         { key: 'noInteres', label: 'No tiene interés en el programa' },
         { key: 'noRecibido', label: 'No se recibió al encuestador o promotor' },
         { key: 'otro', label: 'Otro' }
@@ -1045,7 +1082,7 @@
       rows.forEach((r) => {
         const nom = String(r.capturista_nombre || 'Sin Promotor').trim();
         if (!promotoresMap.has(nom)) {
-          promotoresMap.set(nom, { encuestadas: 0, noEncontradas: 0, noPobreza: 0, noBeneficiaria: 0, noRecibido: 0 });
+          promotoresMap.set(nom, { encuestadas: 0, noEncontradas: 0, noIneVigente: 0, noMenores12: 0, noBeneficiaria: 0, noRecibido: 0 });
         }
         const datos = promotoresMap.get(nom);
         const categoria = getCategoriaRegistro(r);
@@ -1054,7 +1091,7 @@
 
       const promotores = Array.from(promotoresMap.entries())
         .map(([nombre, datos]) => ({ nombre, ...datos }))
-        .sort((a, b) => (b.encuestadas + b.noEncontradas + b.noPobreza + b.noBeneficiaria + b.noRecibido) - (a.encuestadas + a.noEncontradas + a.noPobreza + a.noBeneficiaria + a.noRecibido));
+        .sort((a, b) => (b.encuestadas + b.noEncontradas + b.noIneVigente + b.noMenores12 + b.noBeneficiaria + b.noRecibido) - (a.encuestadas + a.noEncontradas + a.noIneVigente + a.noMenores12 + a.noBeneficiaria + a.noRecibido));
 
       const container = document.getElementById('promotorGraficaContainer');
       if (!promotores.length) {
@@ -1065,21 +1102,24 @@
       const colores = {
         encuestadas: '#16a34a',
         noEncontradas: '#f59e0b',
-        noPobreza: '#dc2626',
+        noIneVigente: '#dc2626',
+        noMenores12: '#b91c1c',
         noBeneficiaria: '#7c3aed',
         noRecibido: '#2563eb'
       };
       const etiquetasLargas = {
         encuestadas: 'Viviendas Encuestadas',
         noEncontradas: 'Viviendas No Encontradas',
-        noPobreza: 'Sin Pobreza Extrema',
+        noIneVigente: 'Beneficiaria sin INE vigente',
+        noMenores12: 'Vivienda sin menores de 12',
         noBeneficiaria: 'No se encontró a la beneficiaria',
         noRecibido: 'No recibió al encuestador'
       };
       const etiquetasCortas = {
         encuestadas: 'Encuestadas',
         noEncontradas: 'No Encontradas',
-        noPobreza: 'Sin Pobreza',
+        noIneVigente: 'Sin INE',
+        noMenores12: 'Sin Menores',
         noBeneficiaria: 'No Beneficiaria',
         noRecibido: 'No Recibido'
       };
@@ -1100,11 +1140,12 @@
           <div class="promotor-scroll" style="overflow-y:${overflowY};max-height:${alturaScroll};padding-right:${conScroll ? '8px' : '0'};">
             <div style="display:grid;gap:12px;">
               ${promotores.map((p) => {
-                const total = p.encuestadas + p.noEncontradas + p.noPobreza + p.noBeneficiaria + p.noRecibido;
+                const total = p.encuestadas + p.noEncontradas + p.noIneVigente + p.noMenores12 + p.noBeneficiaria + p.noRecibido;
                 const segmentos = [
                   { key: 'encuestadas', value: p.encuestadas },
                   { key: 'noEncontradas', value: p.noEncontradas },
-                  { key: 'noPobreza', value: p.noPobreza },
+                  { key: 'noIneVigente', value: p.noIneVigente },
+                  { key: 'noMenores12', value: p.noMenores12 },
                   { key: 'noBeneficiaria', value: p.noBeneficiaria },
                   { key: 'noRecibido', value: p.noRecibido }
                 ];
@@ -1120,7 +1161,7 @@
                           : '';
                       }).join('')}
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:10px;color:var(--muted);">
+                    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;font-size:10px;color:var(--muted);">
                       ${segmentos.map((seg) => `<span style="white-space:nowrap;"><b>${seg.value}</b> ${etiquetasCortas[seg.key]}</span>`).join('')}
                     </div>
                   </div>
@@ -1166,8 +1207,9 @@
 
       markerLayers.encuestadas = L.layerGroup().addTo(map);
       markerLayers.noEncontradas = L.layerGroup().addTo(map);
-      markerLayers.noPobreza = L.layerGroup().addTo(map);
-        markerLayers.noBeneficiaria = L.layerGroup().addTo(map);
+      markerLayers.noIneVigente = L.layerGroup().addTo(map);
+      markerLayers.noMenores12 = L.layerGroup().addTo(map);
+      markerLayers.noBeneficiaria = L.layerGroup().addTo(map);
       markerLayers.noRecibido = L.layerGroup().addTo(map);
 
       cargarManzanas();
@@ -1336,6 +1378,8 @@
       const correo = String(r.correo_electronico || 'Sin correo').trim();
       const estatusBeneficiaria = String(r.se_encontro_beneficiaria || 'Sin dato').trim();
       const motivo = String(r.porque || '').trim();
+      const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente']) || 'Sin dato';
+      const menores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12']) || 'Sin dato';
 
       const calle = String(r.calle || '').trim();
       const numero = String(r.numero || '').trim();
@@ -1353,10 +1397,11 @@
 
       // Detectar cancelaciÃ³n: cualquier pregunta 1-4 con valor "No"
       const cancelChecks = [
-        { label: '1. Â¿Se encontrÃ³ la vivienda?',          val: r.se_encontro_vivienda },
-        { label: '2. Â¿Vivienda en pobreza extrema?',       val: r.vivienda_pobreza_extrema },
-        { label: '3. Â¿Se recibiÃ³ al encuestado?',          val: r.se_recibio_encuestado },
-        { label: '4. Â¿Se encontrÃ³ a la beneficiaria?',     val: r.se_encontro_beneficiaria },
+        { label: '1. Â¿Se encontrÃ³ la vivienda?', val: valorCampo(r, ['se_encontro_vivienda']) },
+        { label: '2. Â¿Beneficiaria con INE vigente?', val: ineVigente },
+        { label: '3. Â¿Habitan menores de 12 aÃ±os?', val: menores12 },
+        { label: '4. Â¿Se recibiÃ³ al encuestador?', val: valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor']) },
+        { label: '5. Â¿Se encontrÃ³ a la beneficiaria?', val: valorCampo(r, ['se_encontro_beneficiaria']) },
       ];
       const cancelTrigger = cancelChecks.find((c) => String(c.val || '').trim().toLowerCase() === 'no');
       const encuestaCancelada = !!cancelTrigger;
@@ -1378,6 +1423,8 @@
           <b>Telefono:</b> ${telefono}<br>
           <b>Correo:</b> ${correo}<br>
           <b>Se encontro:</b> ${estatusBeneficiaria}<br>
+          <b>INE vigente:</b> ${ineVigente}<br>
+          <b>Habitan menores de 12:</b> ${menores12}<br>
           <b>Direccion:</b> ${direccion}<br>
           ${cancelacionBlock}
           <hr style="border:none;border-top:1px solid #ddd;margin:6px 0;">
@@ -1410,14 +1457,16 @@
         const colorByCategoria = {
           encuestadas: '#16a34a',
           noEncontradas: '#f59e0b',
-          noPobreza: '#dc2626',
+          noIneVigente: '#dc2626',
+          noMenores12: '#b91c1c',
           noBeneficiaria: '#7c3aed',
           noRecibido: '#2563eb'
         };
         const layerByCategoria = {
           encuestadas: markerLayers.encuestadas,
           noEncontradas: markerLayers.noEncontradas,
-          noPobreza: markerLayers.noPobreza,
+          noIneVigente: markerLayers.noIneVigente,
+          noMenores12: markerLayers.noMenores12,
           noBeneficiaria: markerLayers.noBeneficiaria,
           noRecibido: markerLayers.noRecibido
         };
@@ -1431,7 +1480,8 @@
       const reglas = [
         ['toggleEncuestadas', markerLayers.encuestadas],
         ['toggleNoEncontradas', markerLayers.noEncontradas],
-        ['toggleNoPobreza', markerLayers.noPobreza],
+        ['toggleNoIneVigente', markerLayers.noIneVigente],
+        ['toggleNoMenores12', markerLayers.noMenores12],
         ['toggleNoBeneficiaria', markerLayers.noBeneficiaria],
         ['toggleNoRecibido', markerLayers.noRecibido]
       ];
@@ -1477,7 +1527,7 @@
       }
     }
 
-    ['toggleEncuestadas', 'toggleNoEncontradas', 'toggleNoPobreza', 'toggleNoBeneficiaria', 'toggleNoRecibido']
+    ['toggleEncuestadas', 'toggleNoEncontradas', 'toggleNoIneVigente', 'toggleNoMenores12', 'toggleNoBeneficiaria', 'toggleNoRecibido']
       .forEach((id) => {
         document.getElementById(id).addEventListener('change', () => renderMapa(registrosFiltrados));
       });
