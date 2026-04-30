@@ -421,9 +421,9 @@
       <button class="btn btn-primary" onclick="cargarDatos()">Actualizar dashboard</button>
       <button class="btn btn-export" onclick="exportarPDF()">Exportar</button>
       <div class="goal-progress" id="goalProgress">
-        <span><b>Meta:</b> 1,060 viviendas</span>
-        <span><b>Avance:</b> <span id="metaAvancePct" class="goal-number">0.0%</span> (<span id="metaAvanceCount" class="goal-number">0</span>/1,060)</span>
-        <span><b>Días hábiles transcurridos:</b> <span id="diasHabiles" class="goal-number">0</span></span>
+        <span><b>Meta:</b> 1,917 viviendas</span>
+        <span><b>Avance:</b> <span id="metaAvancePct" class="goal-number">0.0%</span> (<span id="metaAvanceCount" class="goal-number">0</span>/1,917)</span>
+        <span><b>Días trabajados:</b> <span id="diasHabiles" class="goal-number">0</span></span>
       </div>
       <div id="status" class="status">Esperando carga de datos...</div>
     </div>
@@ -494,8 +494,7 @@
     crossorigin=""
   ></script>
   <script>
-    const OBJETIVO_ENCUESTADAS = 1060;
-    const FECHA_INICIO_OPERATIVO = new Date();
+    const OBJETIVO_ENCUESTADAS = 1917;
     const CAMPOS_FECHA_CANDIDATOS = ['fecha_captura', 'fecha', 'fecha_visita', 'created_at'];
 
     let registros = [];
@@ -739,6 +738,35 @@
       return minDate;
     }
 
+    function obtenerFechaFinProceso(rows) {
+      let maxDate = null;
+      rows.forEach((r) => {
+        CAMPOS_FECHA_CANDIDATOS.forEach((campo) => {
+          const date = parseFechaFlexible(r[campo]);
+          if (!date) return;
+          if (!maxDate || date > maxDate) maxDate = date;
+        });
+      });
+      return maxDate;
+    }
+
+    function obtenerFechaTrabajoRegistro(row) {
+      for (const campo of CAMPOS_FECHA_CANDIDATOS) {
+        const date = parseFechaFlexible(row[campo]);
+        if (date) return date;
+      }
+      return null;
+    }
+
+    function contarDiasTrabajados(rows) {
+      const fechasUnicas = new Set();
+      rows.forEach((r) => {
+        const fecha = obtenerFechaTrabajoRegistro(r);
+        if (fecha) fechasUnicas.add(fecha.getTime());
+      });
+      return fechasUnicas.size;
+    }
+
     function contarDiasHabilesTranscurridos(desde, hasta) {
       if (!desde || !hasta) return 0;
 
@@ -759,8 +787,7 @@
     function renderMetaObjetivo(rows, encuestadas) {
       const avance = OBJETIVO_ENCUESTADAS > 0 ? (encuestadas / OBJETIVO_ENCUESTADAS) * 100 : 0;
       const pct = `${Math.max(0, avance).toFixed(1)}%`;
-      const inicio = toStartOfDay(FECHA_INICIO_OPERATIVO);
-      const diasHabiles = contarDiasHabilesTranscurridos(inicio, new Date());
+      const diasHabiles = contarDiasTrabajados(rows);
 
       document.getElementById('metaAvancePct').textContent = pct;
       document.getElementById('metaAvanceCount').textContent = Number(encuestadas || 0).toLocaleString('es-MX');
@@ -1151,7 +1178,7 @@
                 ];
                 return `
                   <div>
-                    <div style="font-size:13px;font-weight:bold;margin-bottom:4px;">${p.nombre}</div>
+                    <div style="font-size:13px;font-weight:bold;margin-bottom:4px;">${p.nombre} (${total.toLocaleString('es-MX')} registros)</div>
                     <div class="promotor-stack" style="display:flex;gap:0;height:20px;border-radius:4px;overflow:hidden;background:#f3f4f6;border:1px solid #e5e7eb;margin-bottom:4px;">
                       ${segmentos.map((seg) => {
                         const pct = total > 0 ? (seg.value / total) * 100 : 0;
