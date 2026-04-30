@@ -437,7 +437,7 @@
       <div class="card"><h3>Total de Registros</h3><div id="kpi_total" class="value">0</div></div>
       <div class="card"><h3>Viviendas Encuestadas</h3><div id="kpi_encuestadas" class="value">0</div></div>
       <div class="card"><h3>Viviendas No Encontradas</h3><div id="kpi_no_encontradas" class="value">0</div></div>
-      <div class="card"><h3>Beneficiaria sin INE vigente</h3><div id="kpi_no_ine_vigente" class="value">0</div></div>
+      <div class="card"><h3>Beneficiaria sin INE</h3><div id="kpi_no_ine_vigente" class="value">0</div></div>
       <div class="card"><h3>Vivienda sin menores de 12</h3><div id="kpi_no_menores_12" class="value">0</div></div>
       <div class="card"><h3>No se encontró a la beneficiaria</h3><div id="kpi_no_beneficiaria" class="value">0</div></div>
       <div class="card"><h3>No recibió al encuestador</h3><div id="kpi_no_recibido" class="value">0</div></div>
@@ -483,7 +483,7 @@
       <div class="map-toggles">
         <label><input type="checkbox" id="toggleEncuestadas" checked /> <i class="chip" style="background:#16a34a"></i>Viviendas Encuestadas</label>
         <label><input type="checkbox" id="toggleNoEncontradas" checked /> <i class="chip" style="background:#f59e0b"></i>Viviendas No Encontradas</label>
-        <label><input type="checkbox" id="toggleNoIneVigente" checked /> <i class="chip" style="background:#dc2626"></i>Beneficiaria sin INE vigente</label>
+        <label><input type="checkbox" id="toggleNoIneVigente" checked /> <i class="chip" style="background:#dc2626"></i>Beneficiaria sin INE</label>
         <label><input type="checkbox" id="toggleNoMenores12" checked /> <i class="chip" style="background:#b91c1c"></i>Vivienda sin menores de 12</label>
         <label><input type="checkbox" id="toggleNoBeneficiaria" checked /> <i class="chip" style="background:#7c3aed"></i>No se encontró a la beneficiaria</label>
         <label><input type="checkbox" id="toggleNoRecibido" checked /> <i class="chip" style="background:#2563eb"></i>No recibió al encuestador</label>
@@ -832,7 +832,7 @@
       const segments = [
         { label: 'Viviendas Encuestadas', value: encuestadas, color: '#16a34a' },
         { label: 'Viviendas No Encontradas', value: noEncontradas, color: '#f59e0b' },
-        { label: 'Beneficiaria sin INE vigente', value: noIneVigente, color: '#dc2626' },
+        { label: 'Beneficiaria sin INE', value: noIneVigente, color: '#dc2626' },
         { label: 'Vivienda sin menores de 12', value: noMenores12, color: '#b91c1c' },
         { label: 'No se encontró a la beneficiaria', value: noBeneficiaria, color: '#7c3aed' },
         { label: 'No recibió al encuestador', value: noRecibido, color: '#2563eb' }
@@ -892,7 +892,7 @@
         <div class="mini"><h3>Total de Registros</h3><div class="value">${total}</div></div>
         <div class="mini"><h3>Viviendas Encuestadas</h3><div class="value">${encuestadas}</div></div>
         <div class="mini"><h3>Viviendas No Encontradas</h3><div class="value">${noEncontradas}</div></div>
-        <div class="mini"><h3>Beneficiaria sin INE vigente</h3><div class="value">${noIneVigente}</div></div>
+        <div class="mini"><h3>Beneficiaria sin INE</h3><div class="value">${noIneVigente}</div></div>
         <div class="mini"><h3>Vivienda sin menores de 12</h3><div class="value">${noMenores12}</div></div>
         <div class="mini"><h3>No se encontró a la beneficiaria</h3><div class="value">${noBeneficiaria}</div></div>
         <div class="mini"><h3>No recibió al encuestador</h3><div class="value">${noRecibido}</div></div>
@@ -984,7 +984,7 @@
         'no estaba en casa', 'no se encontro en el domicilio', 'fuera de casa'
       ], 2);
 
-      // Beneficiaria no cuenta con INE vigente
+      // Beneficiaria no cuenta con INE
       scores.noIneVigente += sumarPuntajePorPalabras(motivoNorm, [
         'ine', 'no cuenta con ine', 'ine no vigente', 'ine vencida', 'ine expirada',
         'credencial vencida', 'credencial no vigente', 'sin ine vigente', 'sin credencial vigente'
@@ -1043,7 +1043,7 @@
       const catalogo = [
         { key: 'noBeneficiaria', label: 'No se encontró a la beneficiaria' },
         { key: 'noVivienda', label: 'No se encontró la vivienda' },
-        { key: 'noIneVigente', label: 'Beneficiaria no cuenta con INE vigente' },
+        { key: 'noIneVigente', label: 'Beneficiaria no cuenta con INE' },
         { key: 'noMenores12', label: 'En la vivienda no habitan menores de 12 años' },
         { key: 'noInteres', label: 'No tiene interés en el programa' },
         { key: 'noRecibido', label: 'No se recibió al encuestador o promotor' },
@@ -1146,7 +1146,7 @@
       const etiquetasLargas = {
         encuestadas: 'Viviendas Encuestadas',
         noEncontradas: 'Viviendas No Encontradas',
-        noIneVigente: 'Beneficiaria sin INE vigente',
+        noIneVigente: 'Beneficiaria sin INE',
         noMenores12: 'Vivienda sin menores de 12',
         noBeneficiaria: 'No se encontró a la beneficiaria',
         noRecibido: 'No recibió al encuestador'
@@ -1442,7 +1442,7 @@
       // Detectar cancelaciÃ³n: cualquier pregunta 1-4 con valor "No"
       const cancelChecks = [
         { label: '1. Â¿Se encontrÃ³ la vivienda?', val: valorCampo(r, ['se_encontro_vivienda']) },
-        { label: '2. Â¿Beneficiaria con INE vigente?', val: ineVigente },
+        { label: '2. Â¿Beneficiaria con INE?', val: ineVigente },
         { label: '3. Â¿Habitan menores de 12 aÃ±os?', val: menores12 },
         { label: '4. Â¿Se recibiÃ³ al encuestador?', val: valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor']) },
         { label: '5. Â¿Se encontrÃ³ a la beneficiaria?', val: valorCampo(r, ['se_encontro_beneficiaria']) },
@@ -1467,7 +1467,7 @@
           <b>Telefono:</b> ${telefono}<br>
           <b>Correo:</b> ${correo}<br>
           <b>Se encontro:</b> ${estatusBeneficiaria}<br>
-          <b>INE vigente:</b> ${ineVigente}<br>
+          <b>INE:</b> ${ineVigente}<br>
           <b>Habitan menores de 12:</b> ${menores12}<br>
           <b>Direccion:</b> ${direccion}<br>
           ${cancelacionBlock}
