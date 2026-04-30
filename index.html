@@ -520,6 +520,10 @@
       return '';
     }
 
+    function obtenerMotivoCancelacion(r) {
+      return String(r['Motivo de cancelacion'] || r.porque || '').trim();
+    }
+
     function esSiOVacio(value) {
       const norm = toNorm(value);
       return norm === '' || norm === 'si';
@@ -631,11 +635,11 @@
     }
 
     function tienePreguntasVacias(r) {
-      return !toNorm(valorCampo(r, ['se_encontro_vivienda'])) &&
-        !toNorm(valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente'])) &&
-        !toNorm(valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12'])) &&
-        !toNorm(valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor'])) &&
-        !toNorm(valorCampo(r, ['se_encontro_beneficiaria']));
+      return !toNorm(valorCampo(r, ['se_encontro_vivienda', 'Se encontro la vivienda'])) &&
+        !toNorm(valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente', 'Cuenta con INE'])) &&
+        !toNorm(valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12', 'La beneficiaria tiene hijo menor 12 anos'])) &&
+        !toNorm(valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor', 'Se recibio al Promotor'])) &&
+        !toNorm(valorCampo(r, ['se_encontro_beneficiaria', 'Se encontro a la beneficiaria']));
     }
 
     function tieneFormularioCapturado(r) {
@@ -643,11 +647,11 @@
     }
 
     function getCategoriaRegistro(r) {
-      const seEncontroVivienda = valorCampo(r, ['se_encontro_vivienda']);
-      const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente']);
-      const habitanMenores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12']);
-      const seRecibio = valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor']);
-      const seEncontroBeneficiaria = valorCampo(r, ['se_encontro_beneficiaria']);
+      const seEncontroVivienda = valorCampo(r, ['se_encontro_vivienda', 'Se encontro la vivienda']);
+      const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente', 'Cuenta con INE']);
+      const habitanMenores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12', 'La beneficiaria tiene hijo menor 12 anos']);
+      const seRecibio = valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor', 'Se recibio al Promotor']);
+      const seEncontroBeneficiaria = valorCampo(r, ['se_encontro_beneficiaria', 'Se encontro a la beneficiaria']);
 
       if (esNo(seEncontroVivienda)) return 'noEncontradas';
       if (esNo(ineVigente)) return 'noIneVigente';
@@ -668,7 +672,7 @@
       // Compatibilidad con registros antiguos (antes de incorporar preguntas 1-4).
       if (tienePreguntasVacias(r)) {
         const tieneDatosPersona = String(r.nombre || r.curp || r.telefono || '').trim().length > 0;
-        const cancelada = String(r.porque || '').trim().length > 0;
+        const cancelada = obtenerMotivoCancelacion(r).length > 0;
         return tieneDatosPersona && !cancelada ? 'encuestadas' : 'sinClasificar';
       }
 
@@ -1019,7 +1023,7 @@
     }
 
     function categoriaCanonicaMotivo(row) {
-      const motivoOriginal = String(row.porque || '').trim();
+      const motivoOriginal = obtenerMotivoCancelacion(row);
       const motivo = normalizarTexto(motivoOriginal);
       const categoriaEncuesta = getCategoriaRegistro(row);
 
@@ -1048,7 +1052,7 @@
         if (!key || !grupos.has(key)) return;
         const entry = grupos.get(key);
         entry.count += 1;
-        const motivo = String(r.porque || '').trim();
+        const motivo = obtenerMotivoCancelacion(r);
         if (motivo && !entry.variantes.includes(motivo)) {
           entry.variantes.push(motivo);
         }
@@ -1403,10 +1407,10 @@
       const fechaNac = String(r.fecha_nacimiento || 'Sin fecha').trim();
       const telefono = String(r.telefono || 'Sin telefono').trim();
       const correo = String(r.correo_electronico || 'Sin correo').trim();
-      const estatusBeneficiaria = String(r.se_encontro_beneficiaria || 'Sin dato').trim();
-      const motivo = String(r.porque || '').trim();
-      const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente']) || 'Sin dato';
-      const menores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12']) || 'Sin dato';
+      const estatusBeneficiaria = valorCampo(r, ['se_encontro_beneficiaria', 'Se encontro a la beneficiaria']) || 'Sin dato';
+      const motivo = obtenerMotivoCancelacion(r);
+      const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente', 'Cuenta con INE']) || 'Sin dato';
+      const menores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12', 'La beneficiaria tiene hijo menor 12 anos']) || 'Sin dato';
 
       const calle = String(r.calle || '').trim();
       const numero = String(r.numero || '').trim();
