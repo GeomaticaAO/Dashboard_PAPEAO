@@ -1236,6 +1236,13 @@
     function initMap() {
       if (map) return;
       map = L.map('map', { center: [19.32, -99.26], zoom: 14 });
+
+      // Asegura que los puntos de encuesta siempre se dibujen por encima de las manzanas.
+      map.createPane('manzanasPane');
+      map.getPane('manzanasPane').style.zIndex = 420;
+      map.createPane('encuestasPane');
+      map.getPane('encuestasPane').style.zIndex = 650;
+
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors'
@@ -1307,6 +1314,7 @@
         const conglomeradoCentros = new Map();
 
         manzanasLayer = L.geoJSON(geojson, {
+          pane: 'manzanasPane',
           style: (feature) => ({
             color: getColor(feature),
             weight: 1.5,
@@ -1508,7 +1516,7 @@
         };
 
         if (layerByCategoria[categoria]) {
-          L.circleMarker(coord, { ...common, fillColor: colorByCategoria[categoria] }).bindPopup(popupHtml(r)).addTo(layerByCategoria[categoria]);
+          L.circleMarker(coord, { ...common, fillColor: colorByCategoria[categoria], pane: 'encuestasPane' }).bindPopup(popupHtml(r)).addTo(layerByCategoria[categoria]);
           bounds.push(coord);
         }
       });
