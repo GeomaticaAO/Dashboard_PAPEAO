@@ -436,6 +436,7 @@
     <div class="cards">
       <div class="card"><h3>Total de Registros</h3><div id="kpi_total" class="value">0</div></div>
       <div class="card"><h3>Viviendas Encuestadas</h3><div id="kpi_encuestadas" class="value">0</div></div>
+      <div class="card"><h3>Datos incompletos</h3><div id="kpi_datos_incompletos" class="value">0</div></div>
       <div class="card"><h3>Viviendas No Encontradas</h3><div id="kpi_no_encontradas" class="value">0</div></div>
       <div class="card"><h3>Beneficiaria sin INE</h3><div id="kpi_no_ine_vigente" class="value">0</div></div>
       <div class="card"><h3>Vivienda sin menores de 12</h3><div id="kpi_no_menores_12" class="value">0</div></div>
@@ -482,6 +483,7 @@
       <h2>Mapa de Encuestas por Categoría</h2>
       <div class="map-toggles">
         <label><input type="checkbox" id="toggleEncuestadas" checked /> <i class="chip" style="background:#16a34a"></i>Viviendas Encuestadas</label>
+        <label><input type="checkbox" id="toggleDatosIncompletos" checked /> <i class="chip" style="background:#4b5563"></i>Datos incompletos</label>
         <label><input type="checkbox" id="toggleNoEncontradas" checked /> <i class="chip" style="background:#f59e0b"></i>Viviendas No Encontradas</label>
         <label><input type="checkbox" id="toggleNoIneVigente" checked /> <i class="chip" style="background:#dc2626"></i>Beneficiaria sin INE</label>
         <label><input type="checkbox" id="toggleNoMenores12" checked /> <i class="chip" style="background:#b91c1c"></i>Vivienda sin menores de 12</label>
@@ -510,6 +512,7 @@
     let conglomeradoLabelsLayer = L.layerGroup();
     const markerLayers = {
       encuestadas: null,
+      datosIncompletos: null,
       noEncontradas: null,
       noIneVigente: null,
       noMenores12: null,
@@ -517,11 +520,56 @@
       noRecibido: null
     };
 
+    const CAMPOS_HABITAN_MENORES = [
+      'habitan_menores_12',
+      'habitan_menores_de_12',
+      'vivienda_habitan_menores_12',
+      'vivienda_habitan_menores_de_12',
+      'La beneficiaria tiene hijo menor 12 anos',
+      'En la vivienda habita algun menor o igual a 12 aos de edad',
+      'En la vivienda habita algun menor o igual a 12 anos de edad',
+      'En la vivienda habita algun menor o igual a 12 años de edad'
+    ];
+
+    const CAMPOS_DATOS_COMPLETOS = {
+      nombre: ['nombre'],
+      nombreBase: ['nombre_base'],
+      calle: ['calle'],
+      numeroExt: ['numero_ext', 'numero exterior'],
+      numeroInt: ['numero_int', 'numero interior'],
+      manzana: ['manzana'],
+      lote: ['lote'],
+      colonia: ['colonia'],
+      curp: ['curp'],
+      curpConfirmacion: ['curp_confirmacion'],
+      fotoIneFrontal: ['Foto INE Frontal', 'foto_ine_frontal'],
+      fotoIneReverso: ['Foto INE Reverso', 'foto_ine_reverso']
+    };
+
+    function normalizarClaveColumna(value) {
+      return String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/[^a-z0-9_ ]/g, '')
+        .trim();
+    }
+
     function valorCampo(row, campos) {
       for (const campo of campos) {
         const value = String(row[campo] || '').trim();
         if (value) return value;
       }
+
+      const candidatos = new Set(campos.map((c) => normalizarClaveColumna(c)));
+      for (const [key, rawValue] of Object.entries(row || {})) {
+        const value = String(rawValue || '').trim();
+        if (!value) continue;
+        if (candidatos.has(normalizarClaveColumna(key))) return value;
+      }
+
       return '';
     }
 
@@ -642,7 +690,7 @@
     function tienePreguntasVacias(r) {
       return !toNorm(valorCampo(r, ['se_encontro_vivienda', 'Se encontro la vivienda'])) &&
         !toNorm(valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente', 'Cuenta con INE'])) &&
-        !toNorm(valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12', 'La beneficiaria tiene hijo menor 12 anos'])) &&
+        !toNorm(valorCampo(r, CAMPOS_HABITAN_MENORES)) &&
         !toNorm(valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor', 'Se recibio al Promotor'])) &&
         !toNorm(valorCampo(r, ['se_encontro_beneficiaria', 'Se encontro a la beneficiaria']));
     }
@@ -651,10 +699,36 @@
       return String(r.nombre || r.curp || r.telefono || r.fecha_nacimiento || r.calle || '').trim().length > 0;
     }
 
+    function tieneDatosCompletos(r) {
+      const nombre = valorCampo(r, CAMPOS_DATOS_COMPLETOS.nombre);
+      const nombreBase = valorCampo(r, CAMPOS_DATOS_COMPLETOS.nombreBase);
+      const calle = valorCampo(r, CAMPOS_DATOS_COMPLETOS.calle);
+      const numeroExt = valorCampo(r, CAMPOS_DATOS_COMPLETOS.numeroExt);
+      const manzana = valorCampo(r, CAMPOS_DATOS_COMPLETOS.manzana);
+      const lote = valorCampo(r, CAMPOS_DATOS_COMPLETOS.lote);
+      const colonia = valorCampo(r, CAMPOS_DATOS_COMPLETOS.colonia);
+      const curp = valorCampo(r, CAMPOS_DATOS_COMPLETOS.curp);
+      const curpConfirmacion = valorCampo(r, CAMPOS_DATOS_COMPLETOS.curpConfirmacion);
+      const fotoIneFrontal = valorCampo(r, CAMPOS_DATOS_COMPLETOS.fotoIneFrontal);
+      const fotoIneReverso = valorCampo(r, CAMPOS_DATOS_COMPLETOS.fotoIneReverso);
+
+      // La dirección es válida en cualquiera de estas combinaciones:
+      // 1) calle + numero exterior (numero interior opcional)
+      // 2) calle + manzana + lote
+      const direccionPorNumero = Boolean(calle && numeroExt);
+      const direccionPorManzanaLote = Boolean(calle && manzana && lote);
+      const direccionValida = direccionPorNumero || direccionPorManzanaLote;
+
+      if (!nombre || !nombreBase || !direccionValida || !colonia) return false;
+      if (!curp || !curpConfirmacion || !fotoIneFrontal || !fotoIneReverso) return false;
+
+      return toNorm(curp) === toNorm(curpConfirmacion);
+    }
+
     function getCategoriaRegistro(r) {
       const seEncontroVivienda = valorCampo(r, ['se_encontro_vivienda', 'Se encontro la vivienda']);
       const ineVigente = valorCampo(r, ['beneficiaria_ine_vigente', 'ine_vigente', 'se_cuenta_con_ine_vigente', 'beneficiaria_cuenta_ine_vigente', 'Cuenta con INE']);
-      const habitanMenores12 = valorCampo(r, ['habitan_menores_12', 'habitan_menores_de_12', 'vivienda_habitan_menores_12', 'vivienda_habitan_menores_de_12', 'La beneficiaria tiene hijo menor 12 anos']);
+      const habitanMenores12 = valorCampo(r, CAMPOS_HABITAN_MENORES);
       const seRecibio = valorCampo(r, ['se_recibio_encuestado', 'se_recibio_encuestador', 'se_recibio_promotor', 'Se recibio al Promotor']);
       const seEncontroBeneficiaria = valorCampo(r, ['se_encontro_beneficiaria', 'Se encontro a la beneficiaria']);
 
@@ -664,24 +738,12 @@
       if (esNo(seRecibio)) return 'noRecibido';
       if (esNo(seEncontroBeneficiaria)) return 'noBeneficiaria';
 
-      if (
-        esSiOVacio(seEncontroVivienda) &&
-        esSiOVacio(ineVigente) &&
-        esSiOVacio(habitanMenores12) &&
-        esSiOVacio(seRecibio) &&
-        esSiOVacio(seEncontroBeneficiaria)
-      ) {
-        return tieneFormularioCapturado(r) ? 'encuestadas' : 'encuestadas';
-      }
+      const criterios = [seEncontroVivienda, ineVigente, habitanMenores12, seRecibio, seEncontroBeneficiaria];
+      const todosSi = criterios.every((v) => esSi(v));
+      if (!todosSi) return 'datosIncompletos';
 
-      // Compatibilidad con registros antiguos (antes de incorporar preguntas 1-4).
-      if (tienePreguntasVacias(r)) {
-        const tieneDatosPersona = String(r.nombre || r.curp || r.telefono || '').trim().length > 0;
-        const cancelada = obtenerMotivoCancelacion(r).length > 0;
-        return tieneDatosPersona && !cancelada ? 'encuestadas' : 'sinClasificar';
-      }
-
-      return 'sinClasificar';
+      if (!tieneDatosCompletos(r)) return 'datosIncompletos';
+      return 'encuestadas';
     }
 
     function getMetricas(rows) {
@@ -689,6 +751,7 @@
       const metricas = {
         total,
         encuestadas: 0,
+        datosIncompletos: 0,
         noEncontradas: 0,
         noIneVigente: 0,
         noMenores12: 0,
@@ -828,9 +891,10 @@
     }
 
     function renderDonut(rows) {
-      const { total, encuestadas, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, datosIncompletos, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
       const segments = [
         { label: 'Viviendas Encuestadas', value: encuestadas, color: '#16a34a' },
+        { label: 'Datos incompletos', value: datosIncompletos, color: '#4b5563' },
         { label: 'Viviendas No Encontradas', value: noEncontradas, color: '#f59e0b' },
         { label: 'Beneficiaria sin INE', value: noIneVigente, color: '#dc2626' },
         { label: 'Vivienda sin menores de 12', value: noMenores12, color: '#b91c1c' },
@@ -872,10 +936,11 @@
     }
 
     function renderKpis(rows) {
-      const { total, encuestadas, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, datosIncompletos, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
 
       document.getElementById('kpi_total').textContent = total;
       document.getElementById('kpi_encuestadas').textContent = encuestadas;
+      document.getElementById('kpi_datos_incompletos').textContent = datosIncompletos;
       document.getElementById('kpi_no_encontradas').textContent = noEncontradas;
       document.getElementById('kpi_no_ine_vigente').textContent = noIneVigente;
       document.getElementById('kpi_no_menores_12').textContent = noMenores12;
@@ -885,12 +950,13 @@
     }
 
     function renderUserStats(rows) {
-      const { total, encuestadas, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
+      const { total, encuestadas, datosIncompletos, noEncontradas, noIneVigente, noMenores12, noBeneficiaria, noRecibido } = getMetricas(rows);
 
       const holder = document.getElementById('userStats');
       holder.innerHTML = `
         <div class="mini"><h3>Total de Registros</h3><div class="value">${total}</div></div>
         <div class="mini"><h3>Viviendas Encuestadas</h3><div class="value">${encuestadas}</div></div>
+        <div class="mini"><h3>Datos incompletos</h3><div class="value">${datosIncompletos}</div></div>
         <div class="mini"><h3>Viviendas No Encontradas</h3><div class="value">${noEncontradas}</div></div>
         <div class="mini"><h3>Beneficiaria sin INE</h3><div class="value">${noIneVigente}</div></div>
         <div class="mini"><h3>Vivienda sin menores de 12</h3><div class="value">${noMenores12}</div></div>
@@ -921,6 +987,7 @@
     }
 
     function categoriaPorEncuesta(categoriaEncuesta) {
+      if (categoriaEncuesta === 'datosIncompletos') return 'datosIncompletos';
       if (categoriaEncuesta === 'noBeneficiaria') return 'noBeneficiaria';
       if (categoriaEncuesta === 'noIneVigente') return 'noIneVigente';
       if (categoriaEncuesta === 'noMenores12') return 'noMenores12';
@@ -955,6 +1022,7 @@
       }
 
       const scores = {
+        datosIncompletos: 0,
         noBeneficiaria: 0,
         noVivienda: 0,
         noIneVigente: 0,
@@ -962,6 +1030,11 @@
         noInteres: 0,
         noRecibido: 0
       };
+
+      scores.datosIncompletos += sumarPuntajePorPalabras(motivoNorm, [
+        'dato incompleto', 'datos incompletos', 'informacion incompleta', 'incompleto', 'incompleta',
+        'faltan datos', 'falta dato', 'falta curp', 'falta ine', 'falta foto', 'sin foto ine'
+      ], 2);
 
       // Vivienda/domicilio no encontrado
       scores.noVivienda += sumarPuntajePorPalabras(motivoNorm, [
@@ -1041,6 +1114,7 @@
 
     function agruparMotivosCanonicos(rows) {
       const catalogo = [
+        { key: 'datosIncompletos', label: 'Datos incompletos' },
         { key: 'noBeneficiaria', label: 'No se encontró a la beneficiaria' },
         { key: 'noVivienda', label: 'No se encontró la vivienda' },
         { key: 'noIneVigente', label: 'Beneficiaria no cuenta con INE' },
@@ -1118,7 +1192,7 @@
       rows.forEach((r) => {
         const nom = String(r.capturista_nombre || 'Sin Promotor').trim();
         if (!promotoresMap.has(nom)) {
-          promotoresMap.set(nom, { encuestadas: 0, noEncontradas: 0, noIneVigente: 0, noMenores12: 0, noBeneficiaria: 0, noRecibido: 0 });
+          promotoresMap.set(nom, { encuestadas: 0, datosIncompletos: 0, noEncontradas: 0, noIneVigente: 0, noMenores12: 0, noBeneficiaria: 0, noRecibido: 0 });
         }
         const datos = promotoresMap.get(nom);
         const categoria = getCategoriaRegistro(r);
@@ -1127,7 +1201,7 @@
 
       const promotores = Array.from(promotoresMap.entries())
         .map(([nombre, datos]) => ({ nombre, ...datos }))
-        .sort((a, b) => (b.encuestadas + b.noEncontradas + b.noIneVigente + b.noMenores12 + b.noBeneficiaria + b.noRecibido) - (a.encuestadas + a.noEncontradas + a.noIneVigente + a.noMenores12 + a.noBeneficiaria + a.noRecibido));
+        .sort((a, b) => (b.encuestadas + b.datosIncompletos + b.noEncontradas + b.noIneVigente + b.noMenores12 + b.noBeneficiaria + b.noRecibido) - (a.encuestadas + a.datosIncompletos + a.noEncontradas + a.noIneVigente + a.noMenores12 + a.noBeneficiaria + a.noRecibido));
 
       const container = document.getElementById('promotorGraficaContainer');
       if (!promotores.length) {
@@ -1137,6 +1211,7 @@
 
       const colores = {
         encuestadas: '#16a34a',
+        datosIncompletos: '#4b5563',
         noEncontradas: '#f59e0b',
         noIneVigente: '#dc2626',
         noMenores12: '#b91c1c',
@@ -1145,6 +1220,7 @@
       };
       const etiquetasLargas = {
         encuestadas: 'Viviendas Encuestadas',
+        datosIncompletos: 'Datos incompletos',
         noEncontradas: 'Viviendas No Encontradas',
         noIneVigente: 'Beneficiaria sin INE',
         noMenores12: 'Vivienda sin menores de 12',
@@ -1153,6 +1229,7 @@
       };
       const etiquetasCortas = {
         encuestadas: 'Encuestadas',
+        datosIncompletos: 'Incompletos',
         noEncontradas: 'No Encontradas',
         noIneVigente: 'Sin INE',
         noMenores12: 'Sin Menores',
@@ -1176,9 +1253,10 @@
           <div class="promotor-scroll" style="overflow-y:${overflowY};max-height:${alturaScroll};padding-right:${conScroll ? '8px' : '0'};">
             <div style="display:grid;gap:12px;">
               ${promotores.map((p) => {
-                const total = p.encuestadas + p.noEncontradas + p.noIneVigente + p.noMenores12 + p.noBeneficiaria + p.noRecibido;
+                const total = p.encuestadas + p.datosIncompletos + p.noEncontradas + p.noIneVigente + p.noMenores12 + p.noBeneficiaria + p.noRecibido;
                 const segmentos = [
                   { key: 'encuestadas', value: p.encuestadas },
+                  { key: 'datosIncompletos', value: p.datosIncompletos },
                   { key: 'noEncontradas', value: p.noEncontradas },
                   { key: 'noIneVigente', value: p.noIneVigente },
                   { key: 'noMenores12', value: p.noMenores12 },
@@ -1197,7 +1275,7 @@
                           : '';
                       }).join('')}
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;font-size:10px;color:var(--muted);">
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;font-size:10px;color:var(--muted);">
                       ${segmentos.map((seg) => `<span style="white-space:nowrap;"><b>${seg.value}</b> ${etiquetasCortas[seg.key]}</span>`).join('')}
                     </div>
                   </div>
@@ -1249,6 +1327,7 @@
       }).addTo(map);
 
       markerLayers.encuestadas = L.layerGroup().addTo(map);
+      markerLayers.datosIncompletos = L.layerGroup().addTo(map);
       markerLayers.noEncontradas = L.layerGroup().addTo(map);
       markerLayers.noIneVigente = L.layerGroup().addTo(map);
       markerLayers.noMenores12 = L.layerGroup().addTo(map);
@@ -1500,6 +1579,7 @@
         const categoria = getCategoriaRegistro(r);
         const colorByCategoria = {
           encuestadas: '#16a34a',
+          datosIncompletos: '#4b5563',
           noEncontradas: '#f59e0b',
           noIneVigente: '#dc2626',
           noMenores12: '#b91c1c',
@@ -1508,6 +1588,7 @@
         };
         const layerByCategoria = {
           encuestadas: markerLayers.encuestadas,
+          datosIncompletos: markerLayers.datosIncompletos,
           noEncontradas: markerLayers.noEncontradas,
           noIneVigente: markerLayers.noIneVigente,
           noMenores12: markerLayers.noMenores12,
@@ -1523,6 +1604,7 @@
 
       const reglas = [
         ['toggleEncuestadas', markerLayers.encuestadas],
+        ['toggleDatosIncompletos', markerLayers.datosIncompletos],
         ['toggleNoEncontradas', markerLayers.noEncontradas],
         ['toggleNoIneVigente', markerLayers.noIneVigente],
         ['toggleNoMenores12', markerLayers.noMenores12],
@@ -1571,7 +1653,7 @@
       }
     }
 
-    ['toggleEncuestadas', 'toggleNoEncontradas', 'toggleNoIneVigente', 'toggleNoMenores12', 'toggleNoBeneficiaria', 'toggleNoRecibido']
+    ['toggleEncuestadas', 'toggleDatosIncompletos', 'toggleNoEncontradas', 'toggleNoIneVigente', 'toggleNoMenores12', 'toggleNoBeneficiaria', 'toggleNoRecibido']
       .forEach((id) => {
         document.getElementById(id).addEventListener('change', () => renderMapa(registrosFiltrados));
       });
