@@ -502,7 +502,16 @@
   ></script>
   <script>
     const OBJETIVO_ENCUESTADAS = 1197;
-    const CAMPOS_FECHA_CANDIDATOS = ['fecha_captura', 'fecha', 'fecha_visita', 'created_at'];
+    const CAMPOS_FECHA_CANDIDATOS = [
+      'fecha_captura',
+      'Fecha Captura',
+      'fecha captura',
+      'fecha de captura',
+      'fecha',
+      'fecha_visita',
+      'created_at',
+      'created at'
+    ];
 
     let registros = [];
     let registrosFiltrados = [];
@@ -802,7 +811,7 @@
       let minDate = null;
       rows.forEach((r) => {
         CAMPOS_FECHA_CANDIDATOS.forEach((campo) => {
-          const date = parseFechaFlexible(r[campo]);
+          const date = parseFechaFlexible(valorCampo(r, [campo]));
           if (!date) return;
           if (!minDate || date < minDate) minDate = date;
         });
@@ -814,7 +823,7 @@
       let maxDate = null;
       rows.forEach((r) => {
         CAMPOS_FECHA_CANDIDATOS.forEach((campo) => {
-          const date = parseFechaFlexible(r[campo]);
+          const date = parseFechaFlexible(valorCampo(r, [campo]));
           if (!date) return;
           if (!maxDate || date > maxDate) maxDate = date;
         });
@@ -824,7 +833,7 @@
 
     function obtenerFechaTrabajoRegistro(row) {
       for (const campo of CAMPOS_FECHA_CANDIDATOS) {
-        const date = parseFechaFlexible(row[campo]);
+        const date = parseFechaFlexible(valorCampo(row, [campo]));
         if (date) return date;
       }
       return null;
