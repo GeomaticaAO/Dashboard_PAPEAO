@@ -807,6 +807,25 @@
       return Number.isNaN(d.getTime()) ? null : toStartOfDay(d);
     }
 
+    function esCampoFechaTrabajo(key) {
+      const k = normalizarClaveColumna(key);
+      if (!k) return false;
+
+      const tieneFecha = k.includes('fecha') || k.includes('date') || k.includes('created');
+      if (!tieneFecha) return false;
+
+      // Excluir campos de datos personales que no representan dia de levantamiento.
+      if (k.includes('nacimiento')) return false;
+
+      return (
+        k.includes('captura') ||
+        k.includes('visita') ||
+        k.includes('registro') ||
+        k.includes('levantamiento') ||
+        k.includes('created')
+      );
+    }
+
     function obtenerFechaInicioProceso(rows) {
       let minDate = null;
       rows.forEach((r) => {
@@ -836,6 +855,13 @@
         const date = parseFechaFlexible(valorCampo(row, [campo]));
         if (date) return date;
       }
+
+      for (const [key, value] of Object.entries(row || {})) {
+        if (!esCampoFechaTrabajo(key)) continue;
+        const date = parseFechaFlexible(value);
+        if (date) return date;
+      }
+
       return null;
     }
 
