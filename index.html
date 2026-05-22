@@ -515,8 +515,8 @@
     let registrosFiltrados = [];
     let map;
     let manzanasLayer = null;
-    let manzanaLabelsLayer = L.layerGroup();
-    let conglomeradoLabelsLayer = L.layerGroup();
+    let manzanaLabelsLayer = null;
+    let conglomeradoLabelsLayer = null;
     const markerLayers = {
       encuestadas: null,
       datosIncompletos: null,
@@ -1322,7 +1322,15 @@
 
     function initMap() {
       if (map) return;
+      if (typeof L === 'undefined') {
+        console.error('Leaflet no se pudo cargar.');
+        setStatus('No se pudo cargar el mapa (Leaflet). Los indicadores siguen disponibles.', false);
+        return;
+      }
+
       map = L.map('map', { center: [19.32, -99.26], zoom: 14 });
+      manzanaLabelsLayer = L.layerGroup();
+      conglomeradoLabelsLayer = L.layerGroup();
 
       // Asegura que los puntos de encuesta siempre se dibujen por encima de las manzanas.
       map.createPane('manzanasPane');
@@ -1569,6 +1577,7 @@
 
     function renderMapa(rows) {
       initMap();
+      if (!map) return;
       Object.values(markerLayers).forEach((layer) => layer.clearLayers());
 
       const bounds = [];
@@ -1628,21 +1637,26 @@
     }
 
     function actualizarVistaUsuario() {
-      const select = document.getElementById('userSelect');
-      const selected = select.value;
-      registrosFiltrados = selected === '__todos__'
-        ? [...registros]
-        : registros.filter((r) => String(r.capturista_nombre || '').trim() === selected);
+      try {
+        const select = document.getElementById('userSelect');
+        const selected = select.value;
+        registrosFiltrados = selected === '__todos__'
+          ? [...registros]
+          : registros.filter((r) => String(r.capturista_nombre || '').trim() === selected);
 
-      // Secciones globales: siempre con TODOS los registros
-      renderGraficaPromotores(registros);
-      renderDonut(registros);
-      renderKpis(registros);
-      renderTopMotivos(registros);
+        // Secciones globales: siempre con TODOS los registros
+        renderGraficaPromotores(registros);
+        renderDonut(registros);
+        renderKpis(registros);
+        renderTopMotivos(registros);
 
-      // Solo EstadÃ­sticas por Promotor y Mapa: filtrados por promotor seleccionado
-      renderUserStats(registrosFiltrados);
-      renderMapa(registrosFiltrados);
+        // Solo EstadÃ­sticas por Promotor y Mapa: filtrados por promotor seleccionado
+        renderUserStats(registrosFiltrados);
+        renderMapa(registrosFiltrados);
+      } catch (error) {
+        console.error('Error al renderizar dashboard:', error);
+        setStatus(`Error al renderizar dashboard: ${error.message || error}`, false);
+      }
     }
 
     async function cargarDatos() {
