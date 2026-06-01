@@ -416,7 +416,7 @@
 <body>
   <div class="wrap">
     <div class="header">
-      <img src="../logo/logo.png" alt="Logo" onerror="this.style.display='none'" />
+      <img src="./logo/logo.png" alt="Logo" onerror="this.style.display='none'" />
       <div>
         <h1 class="title">Estadísticas obtenidas de la actualización de datos del PAPE AO</h1>
       </div>
@@ -671,8 +671,8 @@
 
     async function cargarDesdeFuentes() {
       const fuentes = [
-        '../salidas/CONSOLIDADO_CSV.csv',
-        'https://raw.githubusercontent.com/GeomaticaAO/APP_PAPEAO_MGE/main/salidas/CONSOLIDADO_CSV.csv'
+        'https://geomaticaao.github.io/APP_PAPEAO_MGE/salidas/CONSOLIDADO_CSV.csv',
+        './salidas/CONSOLIDADO_CSV.csv'
       ];
 
       for (const url of fuentes) {
@@ -1355,8 +1355,7 @@
 
     async function obtenerGeojsonManzanas() {
       const fuentes = [
-        './Manzanas_PAPEAO.geojson',
-        'https://raw.githubusercontent.com/GeomaticaAO/APP_PAPEAO_MGE/main/Manzanas_PAPEAO.geojson'
+        './Manzanas_PAPEAO.geojson'
       ];
 
       for (const url of fuentes) {
